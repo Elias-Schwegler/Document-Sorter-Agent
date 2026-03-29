@@ -1,0 +1,15 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+qdrant-client>=1.13
+httpx>=0.28
+python-multipart>=0.0.18
+pymupdf>=1.25
+pytesseract>=0.3.13
+python-docx>=1.1
+openpyxl>=3.1
+Pillow>=11
+watchfiles>=1.0
+apscheduler>=3.10,<4.0
+telethon>=1.40
+pydantic-settings>=2.7
+aiofiles>=24.1

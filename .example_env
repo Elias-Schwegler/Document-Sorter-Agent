@@ -1,0 +1,73 @@
+# ===========================
+# Document Manager Configuration
+# ===========================
+# Copy this file to .env and fill in your values:
+#   cp .example_env .env
+
+# === Ollama Configuration ===
+# "docker" = use bundled Ollama container (start with --profile local-ollama)
+# "external" = use an existing Ollama instance at OLLAMA_BASE_URL
+OLLAMA_MODE=docker
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_PORT=11434
+
+# === Model Configuration ===
+# Agent model for chat, sorting, renaming (pulled automatically if missing)
+AGENT_MODEL=qwen3.5:4b
+# Embedding model for document vectorization
+EMBEDDING_MODEL=qwen3-embedding:4b
+# Embedding vector dimensions (must match Qdrant collection)
+EMBEDDING_DIMENSIONS=1024
+
+# === Qdrant Configuration ===
+QDRANT_HOST=qdrant
+QDRANT_PORT=6333
+QDRANT_GRPC_PORT=6334
+QDRANT_COLLECTION=documents
+
+# === Backend Configuration ===
+BACKEND_PORT=8000
+BACKEND_HOST=0.0.0.0
+# Paths inside the container
+WATCH_FOLDER=/app/data/new_documents
+SORTED_FOLDER=/app/data/sorted
+SNAPSHOTS_FOLDER=/app/data/qdrant_snapshots
+TELEGRAM_SESSIONS_FOLDER=/app/data/telegram_sessions
+
+# === Ingestion Defaults ===
+# Automatically sort documents into folders on ingest
+AUTO_SORT=true
+# Automatically suggest AI names on ingest
+AUTO_RENAME=false
+# Minimum confidence for auto-sort (below this → Review queue)
+SORT_CONFIDENCE_THRESHOLD=0.6
+
+# === Frontend Configuration ===
+FRONTEND_PORT=3000
+
+# === Telegram Integration ===
+# Get these from https://my.telegram.org/apps
+TELEGRAM_API_ID=
+TELEGRAM_API_HASH=
+TELEGRAM_PHONE=
+TELEGRAM_SESSION_NAME=doc_manager
+
+# === Backup Configuration ===
+# Cron expression for daily Qdrant snapshots (default: 2:00 AM daily)
+BACKUP_CRON=0 2 * * *
+# Number of days to keep old snapshots
+BACKUP_RETENTION_DAYS=7
+
+# === Chunking Configuration ===
+# Characters per chunk for embedding
+CHUNK_SIZE=1500
+# Overlap between consecutive chunks
+CHUNK_OVERLAP=200
+
+# === OCR Configuration ===
+# Tesseract language(s) - e.g., "eng", "deu", "eng+deu"
+TESSERACT_LANG=eng
+
+# === Duplicate Detection ===
+# Similarity threshold for flagging duplicates (0.0-1.0)
+DUPLICATE_THRESHOLD=0.95

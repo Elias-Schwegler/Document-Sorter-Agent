@@ -1,0 +1,101 @@
+.folder-tree {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.folder-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.folder-tree-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.folder-tree-header .btn-icon {
+  color: var(--text-secondary);
+}
+
+.folder-create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.folder-create input {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.folder-list {
+  padding: 6px 0;
+}
+
+.folder-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  text-align: left;
+}
+
+.folder-item-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.folder-item-btn.active {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+}
+
+.folder-chevron {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.folder-chevron-spacer {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.folder-item-btn.active .folder-count {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent);
+}
+
+.folder-children {
+  /* No extra styles needed; indentation handled inline */
+}
