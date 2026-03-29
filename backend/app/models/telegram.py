@@ -27,7 +27,7 @@ class TelegramMessage(BaseModel):
 
 class TelegramFetchRequest(BaseModel):
     message_ids: list[int] | None = None
-    limit: int = 50
+    limit: int = 500
     offset_date: str | None = None
 
 

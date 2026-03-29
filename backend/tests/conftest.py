@@ -79,6 +79,11 @@ import app.routers.documents  # noqa: E402
 import app.routers.folders  # noqa: E402
 import app.routers.settings  # noqa: E402
 import app.routers.chat  # noqa: E402
+import app.routers.telegram  # noqa: E402
+import app.routers.bot  # noqa: E402
+import app.routers.backup  # noqa: E402
+import app.routers.models  # noqa: E402
+import app.services.telegram_client  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

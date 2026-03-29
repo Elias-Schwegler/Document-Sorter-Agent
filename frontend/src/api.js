@@ -7,7 +7,8 @@ async function request(path, options = {}) {
   })
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(error.detail || `Request failed: ${res.status}`)
+    const detail = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail)
+    throw new Error(detail || `Request failed: ${res.status}`)
   }
   return res.json()
 }
@@ -201,11 +202,40 @@ export const telegram = {
       body: JSON.stringify(params),
     }),
 
-  importMessages: (messageIds) =>
-    request('/telegram/import', {
+  importMessages: async (messageIds, onProgress) => {
+    const res = await fetch(`${API_BASE}/telegram/import`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message_ids: messageIds }),
-    }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(err.detail || `Import failed: ${res.status}`)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finalResult = null
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.type === 'complete' || data.type === 'stopped') finalResult = data
+            if (onProgress) onProgress(data)
+          } catch {}
+        }
+      }
+    }
+    return finalResult || { total: messageIds.length, completed: 0, errors: 0 }
+  },
+
+  stopImport: () => request('/telegram/import/stop', { method: 'POST' }),
 
   getMessages: () => request('/telegram/messages'),
 }

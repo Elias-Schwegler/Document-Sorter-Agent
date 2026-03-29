@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react'
-import { Send, Phone, Shield, Download, CheckSquare, Square, Loader, CheckCircle } from 'lucide-react'
+import { Send, Phone, Shield, Download, CheckSquare, Square, Loader, CheckCircle, StopCircle } from 'lucide-react'
 import { telegram } from '../api'
 import { ToastContext } from '../App'
 import './TelegramPage.css'
@@ -14,6 +14,12 @@ export default function TelegramPage() {
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importDone, setImportDone] = useState(false)
+  const [importPhase, setImportPhase] = useState(null) // 'downloading' | 'processing'
+  const [downloads, setDownloads] = useState([])
+  const [processItems, setProcessItems] = useState([])
+  const [importSummary, setImportSummary] = useState(null)
+  const [importStopped, setImportStopped] = useState(false)
+  const [phaseTotal, setPhaseTotal] = useState(0)
   const { addToast } = useContext(ToastContext)
 
   useEffect(() => {
@@ -89,22 +95,77 @@ export default function TelegramPage() {
     if (selected.size === messages.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(messages.map(m => m.id)))
+      setSelected(new Set(messages.map(m => m.message_id)))
     }
   }
 
   const handleImport = async () => {
     if (selected.size === 0) return
     setImporting(true)
+    setDownloads([])
+    setProcessItems([])
+    setImportSummary(null)
+    setImportStopped(false)
+    setImportPhase(null)
+    setStep(4)
     try {
-      await telegram.importMessages(Array.from(selected))
-      setImportDone(true)
-      addToast(`Imported ${selected.size} message(s)`, 'success')
+      const result = await telegram.importMessages(Array.from(selected), (data) => {
+        if (data.type === 'phase') {
+          setImportPhase(data.phase)
+          setPhaseTotal(data.total)
+        } else if (data.type === 'download') {
+          setDownloads(prev => {
+            const updated = [...prev]
+            updated[data.index] = data
+            return updated
+          })
+        } else if (data.type === 'process') {
+          setProcessItems(prev => {
+            const updated = [...prev]
+            updated[data.index] = data
+            return updated
+          })
+        } else if (data.type === 'complete') {
+          setImportSummary(data)
+          setImportDone(true)
+        } else if (data.type === 'stopped') {
+          setImportSummary(data)
+          setImportStopped(true)
+          setImportDone(true)
+        }
+      })
+      if (result?.type === 'stopped') {
+        addToast(`Import stopped. ${result.completed || 0} document(s) saved.`, 'info')
+      } else if (result) {
+        addToast(`Imported ${result.completed} of ${result.total} document(s)`, 'success')
+      }
     } catch (err) {
       addToast(err.message, 'error')
     } finally {
       setImporting(false)
     }
+  }
+
+  const handleStop = async () => {
+    try {
+      await telegram.stopImport()
+      addToast('Stopping import after current item...', 'info')
+    } catch (err) {
+      addToast(err.message, 'error')
+    }
+  }
+
+  const stageLabels = {
+    downloading: 'Downloading...', downloaded: 'Downloaded',
+    parsing: 'Parsing...', embedding: 'Embedding...', storing: 'Storing...',
+    sorting: 'Sorting...', done: 'Done', error: 'Failed', skipped: 'Skipped',
+  }
+
+  const stageColors = {
+    downloading: 'var(--accent)', downloaded: 'var(--success)',
+    parsing: 'var(--warning)', embedding: 'var(--accent)', storing: 'var(--accent)',
+    sorting: 'var(--accent)', done: 'var(--success)', error: 'var(--error)',
+    skipped: 'var(--text-secondary)',
   }
 
   return (
@@ -219,7 +280,7 @@ export default function TelegramPage() {
               </span>
               <button
                 className="btn btn-primary btn-sm"
-                onClick={() => { handleImport(); setStep(4) }}
+                onClick={handleImport}
                 disabled={selected.size === 0 || importing}
               >
                 {importing ? <Loader size={14} className="spinning" /> : <Download size={14} />}
@@ -230,12 +291,12 @@ export default function TelegramPage() {
             <div className="telegram-messages-list">
               {messages.map((msg) => (
                 <div
-                  key={msg.id}
-                  className={`telegram-msg ${selected.has(msg.id) ? 'selected' : ''}`}
-                  onClick={() => toggleSelect(msg.id)}
+                  key={msg.message_id}
+                  className={`telegram-msg ${selected.has(msg.message_id) ? 'selected' : ''}`}
+                  onClick={() => toggleSelect(msg.message_id)}
                 >
                   <div className="telegram-msg-check">
-                    {selected.has(msg.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                    {selected.has(msg.message_id) ? <CheckSquare size={18} /> : <Square size={18} />}
                   </div>
                   <div className="telegram-msg-content">
                     <span className="telegram-msg-text">
@@ -256,22 +317,114 @@ export default function TelegramPage() {
           </div>
         )}
 
-        {importDone && (
-          <div className="telegram-done">
-            <CheckCircle size={48} className="telegram-done-icon" />
-            <h2>Import Complete</h2>
-            <p>{selected.size} message(s) have been imported to your document library.</p>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setImportDone(false)
-                setMessages([])
-                setSelected(new Set())
-                setStep(3)
-              }}
-            >
-              Import More
-            </button>
+        {step === 4 && (importing || importDone) && (
+          <div className="telegram-import-progress">
+
+            {/* Phase 1: Downloads */}
+            {(importPhase === 'downloading' || importPhase === 'processing' || importDone) && downloads.length > 0 && (
+              <div className="import-phase">
+                <div className="import-overall-header">
+                  <h2>{importPhase === 'downloading' ? 'Downloading from Telegram...' : 'Downloads complete'}</h2>
+                  <span className="import-counter">
+                    {downloads.filter(d => d && (d.stage === 'downloaded' || d.stage === 'skipped')).length} / {selected.size}
+                  </span>
+                </div>
+                <div className="import-progress-bar">
+                  <div className="import-progress-fill" style={{
+                    width: `${(downloads.filter(d => d && d.stage !== 'downloading').length / selected.size) * 100}%`,
+                    background: importPhase !== 'downloading' ? 'var(--success)' : 'var(--accent)',
+                  }} />
+                </div>
+                {importPhase === 'downloading' && (
+                  <div className="import-items-list">
+                    {downloads.slice(-5).filter(Boolean).map((item, idx) => (
+                      <div key={idx} className={`import-item ${item.stage}`}>
+                        <div className="import-item-icon">
+                          {item.stage === 'downloaded' ? <CheckCircle size={16} /> :
+                           item.stage === 'error' ? <span className="import-error-icon">!</span> :
+                           item.stage === 'skipped' ? <span className="import-skip-icon">-</span> :
+                           <Loader size={16} className="spinning" />}
+                        </div>
+                        <div className="import-item-name">{item.filename}</div>
+                        <div className="import-item-stage" style={{ color: stageColors[item.stage] }}>
+                          {stageLabels[item.stage] || item.stage}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Phase 2: Processing */}
+            {(importPhase === 'processing' || importDone) && (
+              <div className="import-phase">
+                <div className="import-overall-header">
+                  <h2>{importDone ? 'Import Complete' : 'Processing documents...'}</h2>
+                  <span className="import-counter">
+                    {processItems.filter(p => p && (p.stage === 'done' || p.stage === 'error')).length} / {phaseTotal}
+                  </span>
+                </div>
+                <div className="import-progress-bar">
+                  <div className="import-progress-fill" style={{
+                    width: `${phaseTotal > 0 ? (processItems.filter(p => p && (p.stage === 'done' || p.stage === 'error')).length / phaseTotal) * 100 : 0}%`,
+                    background: importDone ? 'var(--success)' : 'var(--warning)',
+                  }} />
+                </div>
+                <div className="import-items-list">
+                  {processItems.filter(Boolean).map((item, idx) => (
+                    <div key={idx} className={`import-item ${item.stage}`}>
+                      <div className="import-item-icon">
+                        {item.stage === 'done' ? <CheckCircle size={16} /> :
+                         item.stage === 'error' ? <span className="import-error-icon">!</span> :
+                         <Loader size={16} className="spinning" />}
+                      </div>
+                      <div className="import-item-name">{item.filename}</div>
+                      <div className="import-item-stage" style={{ color: stageColors[item.stage] }}>
+                        {stageLabels[item.stage] || item.stage}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stop button during import */}
+            {importing && !importDone && (
+              <button className="btn btn-danger" onClick={handleStop}>
+                <StopCircle size={16} />
+                Stop Import
+              </button>
+            )}
+
+            {/* Summary */}
+            {importSummary && (
+              <div className="import-summary">
+                {importStopped && <span className="import-stat warning">Import stopped</span>}
+                <span className="import-stat success">{importSummary.completed || 0} imported</span>
+                {(importSummary.errors || 0) > 0 && <span className="import-stat error">{importSummary.errors} failed</span>}
+                {(importSummary.remaining || 0) > 0 && <span className="import-stat warning">{importSummary.remaining} remaining</span>}
+              </div>
+            )}
+
+            {importDone && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setImportDone(false)
+                  setImportStopped(false)
+                  setDownloads([])
+                  setProcessItems([])
+                  setImportSummary(null)
+                  setImportPhase(null)
+                  setMessages([])
+                  setSelected(new Set())
+                  setStep(3)
+                }}
+              >
+                Import More
+              </button>
+            )}
           </div>
         )}
       </div>

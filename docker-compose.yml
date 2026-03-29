@@ -25,6 +25,21 @@ services:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ./data/ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  ollama-gpu:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    profiles:
+      - local-ollama-gpu
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ./data/ollama_models:/root/.ollama
     deploy:
       resources:
         reservations:

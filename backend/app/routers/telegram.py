@@ -1,6 +1,9 @@
+import json
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.config import get_settings
 from pydantic import BaseModel
@@ -32,6 +35,9 @@ class TelegramImportRequest(BaseModel):
 
 # In-memory cache of most recently fetched messages
 _fetched_messages: list[dict] = []
+
+# Import cancellation flag
+_import_cancel = False
 
 
 @router.post("/auth/start")
@@ -99,7 +105,7 @@ async def fetch_messages(body: TelegramFetchRequest):
 
 @router.post("/import")
 async def import_messages(body: TelegramImportRequest):
-    """Download selected messages and run ingestion on each."""
+    """Download selected messages and run ingestion on each, streaming progress via SSE."""
     message_ids = body.message_ids
     if not message_ids:
         raise HTTPException(status_code=400, detail="No message_ids provided")
@@ -107,29 +113,80 @@ async def import_messages(body: TelegramImportRequest):
     if not await tg_is_authenticated():
         raise HTTPException(status_code=401, detail="Not authenticated with Telegram")
 
-    settings = get_settings()
-    dest_folder = settings.watch_folder
+    async def progress_stream():
+        global _import_cancel
+        _import_cancel = False
 
-    results: list[dict] = []
-    for mid in message_ids:
-        try:
-            filepath = await download_message_media(mid, dest_folder)
-            if filepath is None:
-                results.append({"message_id": mid, "status": "skipped", "detail": "no media"})
-                continue
+        settings = get_settings()
+        dest_folder = settings.watch_folder
+        total = len(message_ids)
+        completed = 0
+        errors = 0
 
-            doc = await ingest_document(filepath, source="telegram")
-            results.append({
-                "message_id": mid,
-                "status": "ok",
-                "filepath": filepath,
-                "document": doc.model_dump() if hasattr(doc, "model_dump") else str(doc),
-            })
-        except Exception as exc:
-            logger.error("Import failed for message %d: %s", mid, exc)
-            results.append({"message_id": mid, "status": "error", "detail": "Import failed"})
+        def _evt(data):
+            return f"data: {json.dumps(data)}\n\n"
 
-    return {"imported": len([r for r in results if r["status"] == "ok"]), "results": results}
+        def _fname(mid):
+            cached = next((m for m in _fetched_messages if m.get("message_id") == mid), {})
+            return cached.get("filename") or f"message_{mid}"
+
+        # === Phase 1: Download all files first ===
+        yield _evt({"type": "phase", "phase": "downloading", "total": total})
+
+        downloaded = []  # list of (idx, mid, filepath, filename)
+        skipped_downloads = 0
+        for idx, mid in enumerate(message_ids):
+            if _import_cancel:
+                yield _evt({"type": "stopped", "phase": "downloading", "completed": completed, "downloaded": len(downloaded), "remaining": total - idx})
+                return
+
+            fname = _fname(mid)
+            yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "downloading"})
+
+            try:
+                filepath = await download_message_media(mid, dest_folder)
+                if filepath is None:
+                    yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "skipped"})
+                    skipped_downloads += 1
+                    continue
+                actual_fname = os.path.basename(filepath)
+                downloaded.append((idx, mid, filepath, actual_fname))
+                yield _evt({"type": "download", "index": idx, "total": total, "filename": actual_fname, "stage": "downloaded"})
+            except Exception as exc:
+                logger.error("Download failed for message %d: %s", mid, exc)
+                yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "error", "detail": str(exc)[:100]})
+
+        # === Phase 2: Process (parse, embed, sort) each file ===
+        process_total = len(downloaded)
+        yield _evt({"type": "phase", "phase": "processing", "total": process_total, "downloaded": total})
+
+        for proc_idx, (orig_idx, mid, filepath, fname) in enumerate(downloaded):
+            if _import_cancel:
+                yield _evt({"type": "stopped", "phase": "processing", "completed": completed, "processed": proc_idx, "remaining": process_total - proc_idx})
+                return
+
+            yield _evt({"type": "process", "index": proc_idx, "total": process_total, "filename": fname, "stage": "parsing"})
+
+            try:
+                doc = await ingest_document(filepath, source="telegram")
+                yield _evt({"type": "process", "index": proc_idx, "total": process_total, "filename": fname, "stage": "done"})
+                completed += 1
+            except Exception as exc:
+                logger.error("Ingestion failed for %s: %s", fname, exc)
+                yield _evt({"type": "process", "index": proc_idx, "total": process_total, "filename": fname, "stage": "error", "detail": str(exc)[:100]})
+                errors += 1
+
+        yield _evt({"type": "complete", "total": total, "downloaded": len(downloaded), "completed": completed, "errors": errors})
+
+    return StreamingResponse(progress_stream(), media_type="text/event-stream")
+
+
+@router.post("/import/stop")
+async def stop_import():
+    """Stop an in-progress import. Already-downloaded files and processed docs are kept."""
+    global _import_cancel
+    _import_cancel = True
+    return {"status": "ok", "detail": "Import stop requested"}
 
 
 @router.get("/messages", response_model=TelegramFetchResponse)
