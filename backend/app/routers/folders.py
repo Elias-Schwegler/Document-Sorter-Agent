@@ -12,6 +12,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _safe_folder_path(base: str, name: str) -> str:
+    """Resolve a folder path and verify it is inside the base directory.
+
+    Raises HTTPException 400 on path-traversal attempts.
+    """
+    resolved = os.path.realpath(os.path.join(base, name))
+    base_resolved = os.path.realpath(base)
+    if not resolved.startswith(base_resolved + os.sep) and resolved != base_resolved:
+        raise HTTPException(status_code=400, detail="Invalid folder name")
+    return resolved
+
+
 class FolderCreate(BaseModel):
     name: str
 
@@ -25,7 +37,7 @@ class FolderRename(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@router.get("/")
+@router.get("")
 async def get_folders():
     """List all folders in the sorted folder."""
     settings = get_settings()
@@ -38,7 +50,7 @@ async def get_folders():
 # ---------------------------------------------------------------------------
 
 
-@router.post("/")
+@router.post("")
 async def create_folder(body: FolderCreate):
     """Create a new folder inside the sorted folder."""
     settings = get_settings()
@@ -46,17 +58,17 @@ async def create_folder(body: FolderCreate):
     if not name:
         raise HTTPException(status_code=400, detail="Folder name cannot be empty")
 
-    folder_path = os.path.join(settings.sorted_folder, name)
+    folder_path = _safe_folder_path(settings.sorted_folder, name)
     if os.path.exists(folder_path):
         raise HTTPException(status_code=409, detail="Folder already exists")
 
     try:
         os.makedirs(folder_path, exist_ok=True)
         logger.info("Created folder: %s", name)
-        return {"status": "ok", "name": name, "path": folder_path}
+        return {"status": "ok", "name": name}
     except OSError as e:
         logger.error("Failed to create folder %s: %s", name, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create folder")
 
 
 # ---------------------------------------------------------------------------
@@ -68,12 +80,13 @@ async def create_folder(body: FolderCreate):
 async def rename_folder(name: str, body: FolderRename):
     """Rename a folder inside the sorted folder."""
     settings = get_settings()
+    old_name = sanitize_filename(name)
     new_name = sanitize_filename(body.new_name.strip())
     if not new_name:
         raise HTTPException(status_code=400, detail="New folder name cannot be empty")
 
-    old_path = os.path.join(settings.sorted_folder, name)
-    new_path = os.path.join(settings.sorted_folder, new_name)
+    old_path = _safe_folder_path(settings.sorted_folder, old_name)
+    new_path = _safe_folder_path(settings.sorted_folder, new_name)
 
     if not os.path.isdir(old_path):
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -85,8 +98,8 @@ async def rename_folder(name: str, body: FolderRename):
         logger.info("Renamed folder: %s -> %s", name, new_name)
         return {"status": "ok", "old_name": name, "new_name": new_name}
     except OSError as e:
-        logger.error("Failed to rename folder %s: %s", name, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Failed to rename folder %s -> %s: %s", old_name, new_name, e)
+        raise HTTPException(status_code=500, detail="Failed to rename folder")
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +111,8 @@ async def rename_folder(name: str, body: FolderRename):
 async def delete_folder(name: str):
     """Delete an empty folder from the sorted folder."""
     settings = get_settings()
-    folder_path = os.path.join(settings.sorted_folder, name)
+    safe_name = sanitize_filename(name)
+    folder_path = _safe_folder_path(settings.sorted_folder, safe_name)
 
     if not os.path.isdir(folder_path):
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -116,5 +130,5 @@ async def delete_folder(name: str):
         logger.info("Deleted folder: %s", name)
         return {"status": "ok", "name": name}
     except OSError as e:
-        logger.error("Failed to delete folder %s: %s", name, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Failed to delete folder %s: %s", safe_name, e)
+        raise HTTPException(status_code=500, detail="Failed to delete folder")

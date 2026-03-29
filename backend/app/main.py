@@ -2,8 +2,6 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
-from typing import Set
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,7 +10,8 @@ from app.dependencies import ensure_collection, close_clients
 from app.services.watcher import start_watcher, stop_watcher
 from app.services.backup import start_scheduler, stop_scheduler
 from app.services.model_manager import ensure_models_ready
-from app.routers import documents, chat, telegram, models, folders, settings, backup
+from app.routers import documents, chat, telegram, models, folders, settings, backup, bot
+from app.services.telegram_bot import start_bot, stop_bot
 
 logger = logging.getLogger("doc_manager")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -27,12 +26,25 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(ensure_models_ready())
     start_watcher()
     start_scheduler()
+
+    # Start Telegram bot if token is configured
+    bot_settings = get_settings()
+    if bot_settings.telegram_bot_token:
+        try:
+            await start_bot()
+            logger.info("Telegram bot started (instance: %s).", bot_settings.instance_name)
+        except Exception as e:
+            logger.error("Failed to start Telegram bot: %s", e)
+    else:
+        logger.info("Telegram bot not configured (no TELEGRAM_BOT_TOKEN).")
+
     logger.info("Backend ready.")
 
     yield
 
     logger.info("Shutting down...")
-    stop_watcher()
+    await stop_bot()
+    await stop_watcher()
     stop_scheduler()
     await close_clients()
 
@@ -41,12 +53,13 @@ app = FastAPI(
     title="Document Manager API",
     version="1.0.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,6 +71,7 @@ app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(folders.router, prefix="/api/folders", tags=["folders"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(backup.router, prefix="/api/backup", tags=["backup"])
+app.include_router(bot.router, prefix="/api/bot", tags=["bot"])
 
 
 @app.get("/health")

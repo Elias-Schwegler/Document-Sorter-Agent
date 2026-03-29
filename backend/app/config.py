@@ -49,6 +49,23 @@ class Settings(BaseSettings):
     # Duplicate detection
     duplicate_threshold: float = 0.95
 
+    # Telegram Bot (BotFather)
+    telegram_bot_token: str = ""
+    telegram_bot_allowed_users: str = ""
+    instance_name: str = "Default"
+
+    @property
+    def telegram_bot_allowed_user_ids(self) -> list[int]:
+        """Parse comma-separated allowed user IDs into a list of ints."""
+        if not self.telegram_bot_allowed_users.strip():
+            return []
+        ids = []
+        for part in self.telegram_bot_allowed_users.split(","):
+            part = part.strip()
+            if part.isdigit():
+                ids.append(int(part))
+        return ids
+
     @property
     def ollama_url(self) -> str:
         if self.ollama_mode == "external":

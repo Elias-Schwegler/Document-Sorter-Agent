@@ -1,10 +1,10 @@
 import { useState, useEffect, useContext } from 'react'
 import {
   Save, RefreshCw, Database, Loader, CheckCircle,
-  AlertCircle, Clock, HardDrive,
+  AlertCircle, Clock, HardDrive, Bot, Monitor,
 } from 'lucide-react'
 import ModelSelector from '../components/ModelSelector'
-import { settings as settingsApi, backup as backupApi } from '../api'
+import { settings as settingsApi, backup as backupApi, bot as botApi } from '../api'
 import { ToastContext } from '../App'
 import './SettingsPage.css'
 
@@ -20,12 +20,15 @@ export default function SettingsPage() {
   const [snapshots, setSnapshots] = useState([])
   const [snapshotLoading, setSnapshotLoading] = useState(false)
   const [ollamaStatus, setOllamaStatus] = useState(null)
+  const [botStatus, setBotStatus] = useState(null)
+  const [botInstances, setBotInstances] = useState([])
   const { addToast } = useContext(ToastContext)
 
   useEffect(() => {
     loadSettings()
     loadSnapshots()
     checkOllama()
+    checkBot()
   }, [])
 
   const loadSettings = async () => {
@@ -56,6 +59,19 @@ export default function SettingsPage() {
       setOllamaStatus(data.ollama || (res.ok ? 'connected' : 'disconnected'))
     } catch {
       setOllamaStatus('disconnected')
+    }
+  }
+
+  const checkBot = async () => {
+    try {
+      const status = await botApi.status()
+      setBotStatus(status)
+      if (status.running) {
+        const instRes = await botApi.instances()
+        setBotInstances(instRes.instances || [])
+      }
+    } catch {
+      setBotStatus(null)
     }
   }
 
@@ -262,6 +278,62 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-label">
+                <Bot size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+                Telegram Bot
+              </span>
+              <span className="settings-desc">
+                {botStatus?.token_configured
+                  ? `Instance: ${botStatus?.instance_name || 'Default'}`
+                  : 'Not configured (set TELEGRAM_BOT_TOKEN in .env)'}
+              </span>
+            </div>
+            <div className="status-indicator">
+              {botStatus?.running ? (
+                <>
+                  <CheckCircle size={16} className="status-connected" />
+                  <span className="status-text connected">Running</span>
+                </>
+              ) : botStatus?.token_configured ? (
+                <>
+                  <AlertCircle size={16} className="status-disconnected" />
+                  <span className="status-text disconnected">Stopped</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle size={16} className="status-disconnected" />
+                  <span className="status-text disconnected">Not configured</span>
+                </>
+              )}
+              <button className="btn-icon" onClick={checkBot} title="Refresh">
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          {botInstances.length > 0 && (
+            <div className="bot-instances-list">
+              <h3 className="snapshots-title">Registered Instances</h3>
+              {botInstances.map((inst, i) => (
+                <div key={i} className="snapshot-item">
+                  <Monitor size={14} />
+                  <span className="snapshot-name">
+                    {inst.instance_name}
+                    {inst.is_current && ' (this)'}
+                  </span>
+                  {inst.last_seen && (
+                    <span className="snapshot-date">
+                      <Clock size={12} />
+                      {new Date(inst.last_seen).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

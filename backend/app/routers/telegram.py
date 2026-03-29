@@ -3,6 +3,8 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from app.config import get_settings
+from pydantic import BaseModel
+
 from app.models.telegram import (
     TelegramAuthStart,
     TelegramAuthVerify,
@@ -24,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+class TelegramImportRequest(BaseModel):
+    message_ids: list[int]
+
+
 # In-memory cache of most recently fetched messages
 _fetched_messages: list[dict] = []
 
@@ -36,7 +42,7 @@ async def auth_start(body: TelegramAuthStart):
         return result
     except Exception as exc:
         logger.error("Auth start failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Authentication start failed")
 
 
 @router.post("/auth/verify")
@@ -53,14 +59,19 @@ async def auth_verify(body: TelegramAuthVerify):
         raise
     except Exception as exc:
         logger.error("Auth verify failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Authentication verification failed")
 
 
 @router.get("/status")
 async def status():
     """Return the current Telegram authentication status."""
     settings = get_settings()
-    authed = await tg_is_authenticated()
+    if not settings.telegram_api_id or not settings.telegram_api_hash:
+        return TelegramStatus(authenticated=False, phone=settings.telegram_phone)
+    try:
+        authed = await tg_is_authenticated()
+    except Exception:
+        authed = False
     return TelegramStatus(authenticated=authed, phone=settings.telegram_phone)
 
 
@@ -83,13 +94,13 @@ async def fetch_messages(body: TelegramFetchRequest):
         return TelegramFetchResponse(messages=messages, total=len(messages))
     except Exception as exc:
         logger.error("Fetch failed: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail="Failed to fetch messages")
 
 
 @router.post("/import")
-async def import_messages(body: dict):
+async def import_messages(body: TelegramImportRequest):
     """Download selected messages and run ingestion on each."""
-    message_ids: list[int] = body.get("message_ids", [])
+    message_ids = body.message_ids
     if not message_ids:
         raise HTTPException(status_code=400, detail="No message_ids provided")
 
@@ -116,7 +127,7 @@ async def import_messages(body: dict):
             })
         except Exception as exc:
             logger.error("Import failed for message %d: %s", mid, exc)
-            results.append({"message_id": mid, "status": "error", "detail": str(exc)})
+            results.append({"message_id": mid, "status": "error", "detail": "Import failed"})
 
     return {"imported": len([r for r in results if r["status"] == "ok"]), "results": results}
 

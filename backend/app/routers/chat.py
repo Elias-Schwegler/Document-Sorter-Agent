@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/")
+@router.post("")
 async def chat(request: ChatRequest):
     """Stream a RAG-powered chat response as Server-Sent Events."""
     if not request.message.strip():
@@ -24,7 +24,7 @@ async def chat(request: ChatRequest):
         )
     except Exception as e:
         logger.error("Chat endpoint error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Chat request failed")
 
 
 @router.get("/history", response_model=ChatHistoryResponse)

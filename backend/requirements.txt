@@ -13,3 +13,4 @@ apscheduler>=3.10,<4.0
 telethon>=1.40
 pydantic-settings>=2.7
 aiofiles>=24.1
+python-telegram-bot[job-queue]>=21.0

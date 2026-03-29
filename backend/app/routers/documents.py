@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Maximum file upload size: 100 MB
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024
+
 
 class RenameRequest(BaseModel):
     suggested_name: str = ""
@@ -61,8 +64,17 @@ async def upload_documents(files: list[UploadFile] = File(...)):
         tmp_dir = tempfile.mkdtemp()
         tmp_path = os.path.join(tmp_dir, upload.filename or "upload")
         try:
+            content = await upload.read()
+            if len(content) > MAX_UPLOAD_SIZE:
+                results.append({
+                    "filename": upload.filename,
+                    "status": "rejected",
+                    "detail": f"File exceeds maximum size of {MAX_UPLOAD_SIZE // (1024*1024)} MB",
+                })
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                continue
+
             with open(tmp_path, "wb") as f:
-                content = await upload.read()
                 f.write(content)
 
             result = await ingest_document(tmp_path, source="upload")
@@ -89,7 +101,7 @@ async def upload_documents(files: list[UploadFile] = File(...)):
             results.append({
                 "filename": upload.filename,
                 "status": "error",
-                "detail": str(e),
+                "detail": "Ingestion failed",
             })
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -102,7 +114,7 @@ async def upload_documents(files: list[UploadFile] = File(...)):
 # ---------------------------------------------------------------------------
 
 
-@router.get("/", response_model=DocumentListResponse)
+@router.get("", response_model=DocumentListResponse)
 async def list_documents():
     """List all documents from qdrant (chunk_index=0 entries only)."""
     settings = get_settings()
@@ -221,6 +233,15 @@ async def download_document(doc_id: str):
 
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
+
+    # Ensure file_path is within an allowed directory to prevent arbitrary file reads
+    resolved = os.path.realpath(file_path)
+    allowed_dirs = [
+        os.path.realpath(settings.sorted_folder),
+        os.path.realpath(settings.watch_folder),
+    ]
+    if not any(resolved.startswith(d + os.sep) or resolved == d for d in allowed_dirs):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     return FileResponse(
         path=file_path,
@@ -421,7 +442,7 @@ async def bulk_sort():
                 "doc_id": doc_id,
                 "folder": current_folder,
                 "confidence": 0.0,
-                "error": str(e),
+                "error": "Sort failed",
             })
 
     return {

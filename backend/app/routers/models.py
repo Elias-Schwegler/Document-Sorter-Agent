@@ -27,7 +27,7 @@ class ActiveModelUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-@router.get("/")
+@router.get("")
 async def get_models():
     """List all available Ollama models."""
     try:
@@ -35,7 +35,7 @@ async def get_models():
         return {"models": models}
     except Exception as e:
         logger.error("Failed to list models: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list models")
 
 
 # ---------------------------------------------------------------------------

@@ -217,6 +217,12 @@ export const backup = {
   listSnapshots: () => request('/backup/snapshots'),
 }
 
+// Bot
+export const bot = {
+  status: () => request('/bot/status'),
+  instances: () => request('/bot/instances'),
+}
+
 // Settings
 export const settings = {
   get: () => request('/settings'),

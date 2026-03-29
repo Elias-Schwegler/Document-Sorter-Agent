@@ -71,3 +71,11 @@ TESSERACT_LANG=eng
 # === Duplicate Detection ===
 # Similarity threshold for flagging duplicates (0.0-1.0)
 DUPLICATE_THRESHOLD=0.95
+
+# === Telegram Bot (BotFather) ===
+# Create a bot via @BotFather and paste the token here
+TELEGRAM_BOT_TOKEN=
+# Comma-separated list of allowed Telegram user IDs (for security)
+TELEGRAM_BOT_ALLOWED_USERS=
+# Instance name shown in Telegram (e.g., "Home PC", "Work Laptop")
+INSTANCE_NAME=Default

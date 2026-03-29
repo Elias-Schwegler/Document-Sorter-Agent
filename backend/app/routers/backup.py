@@ -24,7 +24,7 @@ async def create_snapshot():
         raise
     except Exception as e:
         logger.error("Snapshot endpoint error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Snapshot creation failed")
 
 
 @router.get("/snapshots")
@@ -35,4 +35,4 @@ async def get_snapshots():
         return {"snapshots": snapshots, "total": len(snapshots)}
     except Exception as e:
         logger.error("List snapshots error: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list snapshots")

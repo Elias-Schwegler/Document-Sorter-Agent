@@ -211,7 +211,7 @@ async def chat_stream(
 
     except Exception as e:
         logger.error("Ollama chat stream failed: %s", e)
-        error_msg = f"Error communicating with the language model: {e}"
+        error_msg = "Error communicating with the language model. Please try again."
         full_response = error_msg
         yield f"data: {json.dumps({'token': error_msg, 'done': False})}\n\n"
 
