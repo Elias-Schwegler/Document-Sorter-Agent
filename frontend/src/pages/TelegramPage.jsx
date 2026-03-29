@@ -156,13 +156,13 @@ export default function TelegramPage() {
   }
 
   const stageLabels = {
-    downloading: 'Downloading...', downloaded: 'Downloaded',
+    downloading: 'Downloading...', downloaded: 'Downloaded', exists: 'Already exists',
     parsing: 'Parsing...', embedding: 'Embedding...', storing: 'Storing...',
     sorting: 'Sorting...', done: 'Done', error: 'Failed', skipped: 'Skipped',
   }
 
   const stageColors = {
-    downloading: 'var(--accent)', downloaded: 'var(--success)',
+    downloading: 'var(--accent)', downloaded: 'var(--success)', exists: 'var(--text-secondary)',
     parsing: 'var(--warning)', embedding: 'var(--accent)', storing: 'var(--accent)',
     sorting: 'var(--accent)', done: 'var(--success)', error: 'var(--error)',
     skipped: 'var(--text-secondary)',
@@ -326,7 +326,7 @@ export default function TelegramPage() {
                 <div className="import-overall-header">
                   <h2>{importPhase === 'downloading' ? 'Downloading from Telegram...' : 'Downloads complete'}</h2>
                   <span className="import-counter">
-                    {downloads.filter(d => d && (d.stage === 'downloaded' || d.stage === 'skipped')).length} / {selected.size}
+                    {downloads.filter(d => d && (d.stage === 'downloaded' || d.stage === 'skipped' || d.stage === 'exists')).length} / {selected.size}
                   </span>
                 </div>
                 <div className="import-progress-bar">
@@ -340,7 +340,7 @@ export default function TelegramPage() {
                     {downloads.slice(-5).filter(Boolean).map((item, idx) => (
                       <div key={idx} className={`import-item ${item.stage}`}>
                         <div className="import-item-icon">
-                          {item.stage === 'downloaded' ? <CheckCircle size={16} /> :
+                          {(item.stage === 'downloaded' || item.stage === 'exists') ? <CheckCircle size={16} /> :
                            item.stage === 'error' ? <span className="import-error-icon">!</span> :
                            item.stage === 'skipped' ? <span className="import-skip-icon">-</span> :
                            <Loader size={16} className="spinning" />}

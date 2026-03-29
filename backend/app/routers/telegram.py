@@ -5,7 +5,10 @@ import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+
 from app.config import get_settings
+from app.dependencies import get_qdrant
 from pydantic import BaseModel
 
 from app.models.telegram import (
@@ -130,31 +133,71 @@ async def import_messages(body: TelegramImportRequest):
             cached = next((m for m in _fetched_messages if m.get("message_id") == mid), {})
             return cached.get("filename") or f"message_{mid}"
 
+        # Build set of already-ingested filenames from Qdrant
+        qdrant = await get_qdrant()
+        existing_filenames: set[str] = set()
+        try:
+            scroll_result = await qdrant.scroll(
+                collection_name=settings.qdrant_collection,
+                scroll_filter=Filter(must=[FieldCondition(key="chunk_index", match=MatchValue(value=0))]),
+                limit=10000,
+                with_payload=["original_filename"],
+            )
+            for point in scroll_result[0]:
+                name = (point.payload or {}).get("original_filename", "")
+                if name:
+                    existing_filenames.add(name)
+        except Exception as exc:
+            logger.warning("Could not check existing docs: %s", exc)
+
+        # Also check files already on disk in watch and sorted folders
+        existing_on_disk: set[str] = set()
+        for folder in [dest_folder, settings.sorted_folder]:
+            for root, _, files in os.walk(folder):
+                for f in files:
+                    existing_on_disk.add(f)
+
         # === Phase 1: Download all files first ===
         yield _evt({"type": "phase", "phase": "downloading", "total": total})
 
         downloaded = []  # list of (idx, mid, filepath, filename)
-        skipped_downloads = 0
+        already_exists = 0
         for idx, mid in enumerate(message_ids):
             if _import_cancel:
                 yield _evt({"type": "stopped", "phase": "downloading", "completed": completed, "downloaded": len(downloaded), "remaining": total - idx})
                 return
 
             fname = _fname(mid)
+
+            # Skip if already ingested or on disk
+            if fname and (fname in existing_filenames or fname in existing_on_disk):
+                yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "exists"})
+                already_exists += 1
+                continue
+
             yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "downloading"})
 
             try:
                 filepath = await download_message_media(mid, dest_folder)
                 if filepath is None:
                     yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "skipped"})
-                    skipped_downloads += 1
                     continue
                 actual_fname = os.path.basename(filepath)
+                # Double-check the downloaded filename isn't already ingested
+                if actual_fname in existing_filenames:
+                    yield _evt({"type": "download", "index": idx, "total": total, "filename": actual_fname, "stage": "exists"})
+                    os.remove(filepath)
+                    already_exists += 1
+                    continue
                 downloaded.append((idx, mid, filepath, actual_fname))
+                existing_on_disk.add(actual_fname)
                 yield _evt({"type": "download", "index": idx, "total": total, "filename": actual_fname, "stage": "downloaded"})
             except Exception as exc:
                 logger.error("Download failed for message %d: %s", mid, exc)
                 yield _evt({"type": "download", "index": idx, "total": total, "filename": fname, "stage": "error", "detail": str(exc)[:100]})
+
+        if already_exists > 0:
+            logger.info("Skipped %d already-existing documents", already_exists)
 
         # === Phase 2: Process (parse, embed, sort) each file ===
         process_total = len(downloaded)
