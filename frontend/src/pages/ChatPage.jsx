@@ -13,7 +13,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     modelsApi.getActive()
-      .then((res) => setActiveModel(res.model || res.name || res))
+      .then((res) => setActiveModel(res.agent_model || res.model || res.name || 'unknown'))
       .catch(() => {})
   }, [])
 
