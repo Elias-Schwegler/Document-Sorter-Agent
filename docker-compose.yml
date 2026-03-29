@@ -1,6 +1,6 @@
 services:
   qdrant:
-    image: qdrant/qdrant:v1.13.2-unprivileged
+    image: qdrant/qdrant:v1.16.2-unprivileged
     restart: unless-stopped
     ports:
       - "${QDRANT_PORT:-6333}:6333"
