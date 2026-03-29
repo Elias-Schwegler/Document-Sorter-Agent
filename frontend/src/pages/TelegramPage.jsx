@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { Send, Phone, Shield, Download, CheckSquare, Square, Loader, CheckCircle, StopCircle } from 'lucide-react'
 import { telegram } from '../api'
 import { ToastContext } from '../App'
+import { useI18n } from '../i18n'
 import './TelegramPage.css'
 
 export default function TelegramPage() {
@@ -21,6 +22,7 @@ export default function TelegramPage() {
   const [importStopped, setImportStopped] = useState(false)
   const [phaseTotal, setPhaseTotal] = useState(0)
   const { addToast } = useContext(ToastContext)
+  const { t } = useI18n()
 
   useEffect(() => {
     checkStatus()
@@ -156,9 +158,9 @@ export default function TelegramPage() {
   }
 
   const stageLabels = {
-    downloading: 'Downloading...', downloaded: 'Downloaded', exists: 'Already exists',
-    parsing: 'Parsing...', embedding: 'Embedding...', storing: 'Storing...',
-    sorting: 'Sorting...', done: 'Done', error: 'Failed', skipped: 'Skipped',
+    downloading: t('stage.downloading'), downloaded: t('stage.downloaded'), exists: t('stage.exists'),
+    parsing: t('stage.parsing'), embedding: t('stage.embedding'), storing: t('stage.storing'),
+    sorting: t('stage.sorting'), done: t('stage.done'), error: t('stage.error'), skipped: t('stage.skipped'),
   }
 
   const stageColors = {
@@ -171,28 +173,28 @@ export default function TelegramPage() {
   return (
     <div className="telegram-page page">
       <div className="section-header">
-        <h1 className="section-title">Telegram Import</h1>
+        <h1 className="section-title">{t('tg.title')}</h1>
       </div>
 
       <div className="telegram-steps">
         <div className={`telegram-step-indicator ${step >= 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}`}>
           <div className="step-circle">{step > 1 ? <CheckCircle size={16} /> : '1'}</div>
-          <span>Phone</span>
+          <span>{t('tg.phone')}</span>
         </div>
         <div className="step-line" />
         <div className={`telegram-step-indicator ${step >= 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}`}>
           <div className="step-circle">{step > 2 ? <CheckCircle size={16} /> : '2'}</div>
-          <span>Verify</span>
+          <span>{t('tg.verify')}</span>
         </div>
         <div className="step-line" />
         <div className={`telegram-step-indicator ${step >= 3 ? 'active' : ''} ${step > 3 ? 'done' : ''}`}>
           <div className="step-circle">{step > 3 ? <CheckCircle size={16} /> : '3'}</div>
-          <span>Fetch</span>
+          <span>{t('tg.fetch')}</span>
         </div>
         <div className="step-line" />
         <div className={`telegram-step-indicator ${step >= 4 ? 'active' : ''} ${importDone ? 'done' : ''}`}>
           <div className="step-circle">{importDone ? <CheckCircle size={16} /> : '4'}</div>
-          <span>Import</span>
+          <span>{t('tg.import')}</span>
         </div>
       </div>
 
@@ -202,8 +204,8 @@ export default function TelegramPage() {
             <div className="telegram-form-icon">
               <Phone size={32} />
             </div>
-            <h2>Enter your phone number</h2>
-            <p>We will send a verification code via Telegram.</p>
+            <h2>{t('tg.enter_phone')}</h2>
+            <p>{t('tg.code_sent')}</p>
             <input
               type="tel"
               value={phone}
@@ -217,7 +219,7 @@ export default function TelegramPage() {
               disabled={!phone.trim() || loading}
             >
               {loading ? <Loader size={16} className="spinning" /> : <Send size={16} />}
-              Send Code
+              {t('tg.send_code')}
             </button>
           </form>
         )}
@@ -227,8 +229,8 @@ export default function TelegramPage() {
             <div className="telegram-form-icon">
               <Shield size={32} />
             </div>
-            <h2>Enter verification code</h2>
-            <p>Check your Telegram app for the code.</p>
+            <h2>{t('tg.enter_code')}</h2>
+            <p>{t('tg.check_app')}</p>
             <input
               type="text"
               value={code}
@@ -253,15 +255,15 @@ export default function TelegramPage() {
             <div className="telegram-form-icon">
               <Download size={32} />
             </div>
-            <h2>Fetch Messages</h2>
-            <p>Retrieve recent saved messages and documents from Telegram.</p>
+            <h2>{t('tg.fetch_messages')}</h2>
+            <p>{t('tg.fetch_desc')}</p>
             <button
               className="btn btn-primary"
               onClick={() => { handleFetch(); setStep(3) }}
               disabled={loading}
             >
               {loading ? <Loader size={16} className="spinning" /> : <Download size={16} />}
-              Fetch Messages
+              {t('tg.fetch_messages')}
             </button>
           </div>
         )}
@@ -273,10 +275,10 @@ export default function TelegramPage() {
                 {selected.size === messages.length
                   ? <CheckSquare size={16} />
                   : <Square size={16} />}
-                {selected.size === messages.length ? 'Deselect All' : 'Select All'}
+                {selected.size === messages.length ? t('tg.deselect_all') : t('tg.select_all')}
               </button>
               <span className="telegram-selected-count">
-                {selected.size} of {messages.length} selected
+                {selected.size} / {messages.length} {t('tg.selected')}
               </span>
               <button
                 className="btn btn-primary btn-sm"
@@ -284,7 +286,7 @@ export default function TelegramPage() {
                 disabled={selected.size === 0 || importing}
               >
                 {importing ? <Loader size={14} className="spinning" /> : <Download size={14} />}
-                Import Selected
+                {t('tg.import_selected')}
               </button>
             </div>
 
@@ -324,7 +326,7 @@ export default function TelegramPage() {
             {(importPhase === 'downloading' || importPhase === 'processing' || importDone) && downloads.length > 0 && (
               <div className="import-phase">
                 <div className="import-overall-header">
-                  <h2>{importPhase === 'downloading' ? 'Downloading from Telegram...' : 'Downloads complete'}</h2>
+                  <h2>{importPhase === 'downloading' ? t('tg.downloading') : t('tg.downloads_complete')}</h2>
                   <span className="import-counter">
                     {downloads.filter(d => d && (d.stage === 'downloaded' || d.stage === 'skipped' || d.stage === 'exists')).length} / {selected.size}
                   </span>
@@ -360,7 +362,7 @@ export default function TelegramPage() {
             {(importPhase === 'processing' || importDone) && (
               <div className="import-phase">
                 <div className="import-overall-header">
-                  <h2>{importDone ? 'Import Complete' : 'Processing documents...'}</h2>
+                  <h2>{importDone ? t('tg.import_complete') : t('tg.processing')}</h2>
                   <span className="import-counter">
                     {processItems.filter(p => p && (p.stage === 'done' || p.stage === 'error')).length} / {phaseTotal}
                   </span>
@@ -393,17 +395,17 @@ export default function TelegramPage() {
             {importing && !importDone && (
               <button className="btn btn-danger" onClick={handleStop}>
                 <StopCircle size={16} />
-                Stop Import
+                {t('tg.stop_import')}
               </button>
             )}
 
             {/* Summary */}
             {importSummary && (
               <div className="import-summary">
-                {importStopped && <span className="import-stat warning">Import stopped</span>}
-                <span className="import-stat success">{importSummary.completed || 0} imported</span>
-                {(importSummary.errors || 0) > 0 && <span className="import-stat error">{importSummary.errors} failed</span>}
-                {(importSummary.remaining || 0) > 0 && <span className="import-stat warning">{importSummary.remaining} remaining</span>}
+                {importStopped && <span className="import-stat warning">{t('tg.import_stopped')}</span>}
+                <span className="import-stat success">{importSummary.completed || 0} {t('tg.imported')}</span>
+                {(importSummary.errors || 0) > 0 && <span className="import-stat error">{importSummary.errors} {t('tg.failed')}</span>}
+                {(importSummary.remaining || 0) > 0 && <span className="import-stat warning">{importSummary.remaining} {t('tg.remaining')}</span>}
               </div>
             )}
 
@@ -422,7 +424,7 @@ export default function TelegramPage() {
                   setStep(3)
                 }}
               >
-                Import More
+                {t('tg.import_more')}
               </button>
             )}
           </div>

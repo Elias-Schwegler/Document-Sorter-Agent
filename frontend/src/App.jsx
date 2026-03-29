@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useState, useCallback, createContext } from 'react'
+import { I18nProvider } from './i18n'
 import Sidebar from './components/Sidebar'
 import ChatPage from './pages/ChatPage'
 import DocumentsPage from './pages/DocumentsPage'
@@ -27,6 +28,7 @@ export default function App() {
   }, [])
 
   return (
+    <I18nProvider>
     <ToastContext.Provider value={{ addToast }}>
       <BrowserRouter>
         <div className="app-layout">
@@ -47,5 +49,6 @@ export default function App() {
         </div>
       </BrowserRouter>
     </ToastContext.Provider>
+    </I18nProvider>
   )
 }

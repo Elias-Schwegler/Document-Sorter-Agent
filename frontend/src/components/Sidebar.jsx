@@ -1,15 +1,18 @@
 import { NavLink } from 'react-router-dom'
 import { MessageSquare, FileText, Send, Settings, Menu, X } from 'lucide-react'
+import { useI18n } from '../i18n'
 import './Sidebar.css'
 
-const navItems = [
-  { to: '/', icon: MessageSquare, label: 'Chat' },
-  { to: '/documents', icon: FileText, label: 'Documents' },
-  { to: '/telegram', icon: Send, label: 'Telegram' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-]
-
 export default function Sidebar({ isOpen, onToggle, docCount }) {
+  const { t } = useI18n()
+
+  const navItems = [
+    { to: '/', icon: MessageSquare, labelKey: 'nav.chat' },
+    { to: '/documents', icon: FileText, labelKey: 'nav.documents' },
+    { to: '/telegram', icon: Send, labelKey: 'nav.telegram' },
+    { to: '/settings', icon: Settings, labelKey: 'nav.settings' },
+  ]
+
   return (
     <>
       <button className="sidebar-toggle-mobile" onClick={onToggle}>
@@ -28,7 +31,7 @@ export default function Sidebar({ isOpen, onToggle, docCount }) {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, labelKey }) => (
             <NavLink
               key={to}
               to={to}
@@ -38,8 +41,8 @@ export default function Sidebar({ isOpen, onToggle, docCount }) {
               end={to === '/'}
             >
               <Icon size={20} />
-              <span>{label}</span>
-              {label === 'Documents' && docCount > 0 && (
+              <span>{t(labelKey)}</span>
+              {labelKey === 'nav.documents' && docCount > 0 && (
                 <span className="sidebar-badge">{docCount}</span>
               )}
             </NavLink>

@@ -1,3 +1,47 @@
+/* Language selector in settings */
+.lang-setting-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lang-setting-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.lang-setting-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.lang-setting-btn.active {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--accent);
+}
+
+.lang-setting-flag {
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .settings-page .settings-loading {
   display: flex;
   align-items: center;

@@ -1,11 +1,12 @@
 import { useState, useEffect, useContext } from 'react'
 import {
   Save, RefreshCw, Database, Loader, CheckCircle,
-  AlertCircle, Clock, HardDrive, Bot, Monitor,
+  AlertCircle, Clock, HardDrive, Bot, Monitor, Globe,
 } from 'lucide-react'
 import ModelSelector from '../components/ModelSelector'
 import { settings as settingsApi, backup as backupApi, bot as botApi } from '../api'
 import { ToastContext } from '../App'
+import { useI18n, LANGUAGES } from '../i18n'
 import './SettingsPage.css'
 
 export default function SettingsPage() {
@@ -23,6 +24,7 @@ export default function SettingsPage() {
   const [botStatus, setBotStatus] = useState(null)
   const [botInstances, setBotInstances] = useState([])
   const { addToast } = useContext(ToastContext)
+  const { lang, setLanguage, t } = useI18n()
 
   useEffect(() => {
     loadSettings()
@@ -118,7 +120,7 @@ export default function SettingsPage() {
   return (
     <div className="settings-page page">
       <div className="section-header">
-        <h1 className="section-title">Settings</h1>
+        <h1 className="section-title">{t('settings.title')}</h1>
         <button
           className="btn btn-primary"
           onClick={handleSave}
@@ -131,7 +133,26 @@ export default function SettingsPage() {
 
       <div className="settings-grid">
         <section className="settings-section card">
-          <h2 className="settings-section-title">Model Configuration</h2>
+          <h2 className="settings-section-title">
+            <Globe size={18} />
+            {t('lang.language')}
+          </h2>
+          <div className="lang-setting-buttons">
+            {LANGUAGES.map(l => (
+              <button
+                key={l.code}
+                className={`lang-setting-btn ${l.code === lang ? 'active' : ''}`}
+                onClick={() => setLanguage(l.code)}
+              >
+                <span className="lang-setting-flag">{l.flag}</span>
+                <span>{l.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="settings-section card">
+          <h2 className="settings-section-title">{t('settings.models')}</h2>
           <ModelSelector />
         </section>
 
