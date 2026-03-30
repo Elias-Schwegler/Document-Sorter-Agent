@@ -9,6 +9,7 @@ data/qdrant_storage/*
 data/qdrant_snapshots/*
 data/ollama_models/*
 data/telegram_sessions/*
+data/hf_cache/*
 
 # Keep directory structure
 !data/*/.gitkeep
