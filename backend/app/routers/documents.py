@@ -425,6 +425,74 @@ async def download_document(doc_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Preview (thumbnail/image of first page)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{doc_id}/preview")
+async def preview_document(doc_id: str):
+    """Return a visual preview of the document (first page as image, or the image itself)."""
+    from fastapi.responses import Response
+
+    settings = get_settings()
+    qdrant = await get_qdrant()
+
+    points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(
+            must=[
+                FieldCondition(key="doc_id", match=MatchValue(value=doc_id)),
+                FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+            ]
+        ),
+        limit=1,
+        with_payload=True,
+        with_vectors=False,
+    )
+
+    if not points:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    payload = points[0].payload or {}
+    file_path = payload.get("file_path", "")
+    file_type = payload.get("file_type", "")
+
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    resolved = os.path.realpath(file_path)
+    allowed_dirs = [
+        os.path.realpath(settings.sorted_folder),
+        os.path.realpath(settings.watch_folder),
+    ]
+    if not any(resolved.startswith(d + os.sep) or resolved == d for d in allowed_dirs):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        if file_type == "image":
+            return FileResponse(file_path, media_type="image/jpeg")
+
+        if file_type == "pdf":
+            import fitz
+            doc = fitz.open(file_path)
+            if len(doc) == 0:
+                doc.close()
+                raise HTTPException(status_code=404, detail="Empty PDF")
+            page = doc[0]
+            pix = page.get_pixmap(dpi=150)
+            img_bytes = pix.tobytes("jpeg")
+            doc.close()
+            return Response(content=img_bytes, media_type="image/jpeg")
+
+        raise HTTPException(status_code=400, detail="Preview not available for this file type")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Preview generation failed for %s: %s", doc_id, e)
+        raise HTTPException(status_code=500, detail="Preview generation failed")
+
+
+# ---------------------------------------------------------------------------
 # Delete document
 # ---------------------------------------------------------------------------
 

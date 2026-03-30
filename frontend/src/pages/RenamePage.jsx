@@ -198,11 +198,20 @@ export default function RenamePage({ onRenameCountChange }) {
                   <div className="rename-current-name">{selected.filename}</div>
                 </div>
 
-                {selected.text_preview && (
-                  <div className="rename-text-preview">
-                    <pre>{selected.text_preview}</pre>
+                <div className="rename-doc-preview">
+                  <img
+                    src={`/api/documents/${selected.doc_id}/preview`}
+                    alt={selected.filename}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
+                  />
+                  <div className="rename-text-fallback" style={{ display: 'none' }}>
+                    {selected.text_preview ? (
+                      <pre>{selected.text_preview}</pre>
+                    ) : (
+                      <p>Preview not available</p>
+                    )}
                   </div>
-                )}
+                </div>
 
                 <div className="rename-suggestions-section">
                   <div className="rename-suggestions-header">
