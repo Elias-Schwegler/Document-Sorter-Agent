@@ -29,9 +29,39 @@ async def sort_document(
     existing_folders = list_folders(settings.sorted_folder)
     folders_str = ", ".join(existing_folders) if existing_folders else "(none yet)"
 
+    # Find similar documents already sorted (few-shot from user's own data)
+    similar_context = ""
+    try:
+        from app.services.embedding import embed_text
+        query_emb = await embed_text(text[:500])
+        if query_emb:
+            similar = await qdrant.query_points(
+                collection_name=settings.qdrant_collection,
+                query=query_emb,
+                query_filter=Filter(
+                    must=[FieldCondition(key="chunk_index", match=MatchValue(value=0))],
+                    must_not=[FieldCondition(key="folder", match=MatchValue(value=""))],
+                ),
+                limit=5,
+                score_threshold=0.3,
+            )
+            examples = []
+            seen_folders = set()
+            for hit in similar.points:
+                p = hit.payload or {}
+                f = p.get("folder", "")
+                fn = p.get("filename", "")
+                if f and f != "_review" and f not in seen_folders:
+                    examples.append(f'  - "{fn}" → folder: {f}')
+                    seen_folders.add(f)
+            if examples:
+                similar_context = "\n\nSimilar documents were previously sorted like this:\n" + "\n".join(examples[:5])
+    except Exception as e:
+        logger.debug("Could not find similar docs for sorting context: %s", e)
+
     # Build prompt
     content_preview = text[:2000]
-    prompt = SORT_PROMPT.format(folders=folders_str, content=content_preview)
+    prompt = SORT_PROMPT.format(folders=folders_str, content=content_preview) + similar_context
 
     # Call Ollama chat API
     url = settings.ollama_url + "/api/chat"

@@ -9,6 +9,7 @@ Document content (first 2000 characters):
 
 Instructions:
 - Choose the most appropriate existing folder, or suggest a new folder name if none fit.
+- If examples of similar previously-sorted documents are provided below, use them as strong guidance.
 - Folder names should be short, lowercase, descriptive (e.g., "invoices", "medical", "tax_documents", "contracts").
 - Respond ONLY with valid JSON, no other text.
 
