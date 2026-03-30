@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import logging
 
 from qdrant_client.models import Filter, FieldCondition, MatchValue
@@ -113,8 +114,16 @@ async def sort_document(
     else:
         proposed_folder = ""
 
+    # Sanitize folder name: strip path separators and traversal sequences
+    folder = re.sub(r'[/\\]', '_', folder).replace('..', '_')
+
     # Move the file to sorted/{folder}/
     dest_dir = os.path.join(settings.sorted_folder, folder)
+    # Verify dest_dir is inside sorted_folder
+    if not os.path.realpath(dest_dir).startswith(os.path.realpath(settings.sorted_folder) + os.sep):
+        logger.warning("Folder name would escape sorted_folder: %s", folder)
+        folder = "_review"
+        dest_dir = os.path.join(settings.sorted_folder, folder)
 
     # Find current file path from qdrant
     search_results = await qdrant.scroll(

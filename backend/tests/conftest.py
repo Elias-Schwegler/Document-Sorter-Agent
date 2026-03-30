@@ -84,6 +84,10 @@ import app.routers.bot  # noqa: E402
 import app.routers.backup  # noqa: E402
 import app.routers.models  # noqa: E402
 import app.services.telegram_client  # noqa: E402
+import app.services.vision  # noqa: E402
+import app.services.sorting  # noqa: E402
+import app.services.reconcile  # noqa: E402
+import app.services.renaming  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

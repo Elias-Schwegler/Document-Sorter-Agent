@@ -21,7 +21,7 @@ from app.models.document import (
 from app.services.ingestion import ingest_document
 from app.services.sorting import sort_document
 from app.services.renaming import suggest_rename, apply_rename
-from app.utils.file_utils import SUPPORTED_EXTENSIONS
+from app.utils.file_utils import SUPPORTED_EXTENSIONS, move_file
 
 logger = logging.getLogger(__name__)
 
@@ -250,8 +250,15 @@ async def approve_folder(body: FolderApprovalRequest):
     if not folder_name:
         raise HTTPException(status_code=400, detail="Folder name required")
 
+    # Validate folder name: must be a simple name, no path separators or traversal
+    if "/" in folder_name or "\\" in folder_name or ".." in folder_name:
+        raise HTTPException(status_code=400, detail="Invalid folder name")
+
     # Create folder and move file
     dest_dir = os.path.join(settings.sorted_folder, folder_name)
+    # Verify dest_dir is inside sorted_folder (defense in depth)
+    if not os.path.realpath(dest_dir).startswith(os.path.realpath(settings.sorted_folder) + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid folder name")
     os.makedirs(dest_dir, exist_ok=True)
 
     if current_path and os.path.exists(current_path):
@@ -396,9 +403,12 @@ async def upload_documents(files: list[UploadFile] = File(...)):
             })
             continue
 
-        # Save to temp file
+        # Save to temp file — sanitize the filename to prevent path traversal
         tmp_dir = tempfile.mkdtemp()
-        tmp_path = os.path.join(tmp_dir, upload.filename or "upload")
+        safe_name = os.path.basename(upload.filename or "upload")
+        if not safe_name:
+            safe_name = "upload"
+        tmp_path = os.path.join(tmp_dir, safe_name)
         try:
             content = await upload.read()
             if len(content) > MAX_UPLOAD_SIZE:
@@ -752,13 +762,21 @@ async def delete_document(doc_id: str):
         points_selector=point_ids,
     )
 
-    # Delete file from disk
+    # Delete file from disk (only if inside allowed directories)
     if file_path and os.path.exists(file_path):
-        try:
-            os.remove(file_path)
-            logger.info("Deleted file: %s", file_path)
-        except OSError as e:
-            logger.warning("Failed to delete file %s: %s", file_path, e)
+        resolved = os.path.realpath(file_path)
+        allowed_dirs = [
+            os.path.realpath(settings.sorted_folder),
+            os.path.realpath(settings.watch_folder),
+        ]
+        if any(resolved.startswith(d + os.sep) or resolved == d for d in allowed_dirs):
+            try:
+                os.remove(file_path)
+                logger.info("Deleted file: %s", file_path)
+            except OSError as e:
+                logger.warning("Failed to delete file %s: %s", file_path, e)
+        else:
+            logger.warning("Refusing to delete file outside allowed dirs: %s", file_path)
 
     logger.info("Deleted document %s (%d chunks)", doc_id, len(point_ids))
     return {"status": "ok", "doc_id": doc_id, "chunks_deleted": len(point_ids)}

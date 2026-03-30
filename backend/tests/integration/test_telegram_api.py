@@ -189,9 +189,7 @@ class TestTelegramImport:
 
     @pytest.mark.asyncio
     async def test_import_streams_events(self, client):
-        """Import should stream SSE events covering download and process phases."""
-        mock_doc = {"id": "doc-1", "filename": "report.pdf"}
-
+        """Import should stream SSE download events then complete."""
         with (
             patch(
                 "app.routers.telegram.tg_is_authenticated",
@@ -204,9 +202,8 @@ class TestTelegramImport:
                 return_value="/tmp/report.pdf",
             ),
             patch(
-                "app.routers.telegram.ingest_document",
+                "app.routers.telegram.get_qdrant",
                 new_callable=AsyncMock,
-                return_value=mock_doc,
             ),
         ):
             async with client.stream(
@@ -220,23 +217,20 @@ class TestTelegramImport:
                     if line.startswith("data: "):
                         events.append(json.loads(line[6:]))
 
-        # There should be events for both phases
+        # Should have download phase and complete events (no processing phase — watcher handles that)
         event_types = [e["type"] for e in events]
         assert "phase" in event_types
         assert "download" in event_types
-        assert "process" in event_types
         assert "complete" in event_types
 
         # Verify download phase announced
         phase_events = [e for e in events if e["type"] == "phase"]
         assert any(e["phase"] == "downloading" for e in phase_events)
-        assert any(e["phase"] == "processing" for e in phase_events)
 
-        # Verify complete summary
-        complete_evt = [e for e in events if e["type"] == "complete"][0]
+        # Complete event has total count and downloaded count
+        complete_evt = next(e for e in events if e["type"] == "complete")
         assert complete_evt["total"] == 2
-        assert complete_evt["completed"] == 2
-        assert complete_evt["errors"] == 0
+        assert "downloaded" in complete_evt
 
     @pytest.mark.asyncio
     async def test_import_empty_message_ids(self, client):

@@ -49,6 +49,12 @@ async def suggest_rename(
             use_vision = True
             try:
                 import base64
+                # Check file size before reading (limit to 50 MB)
+                file_size = os.path.getsize(file_path)
+                if file_size > 50 * 1024 * 1024:
+                    logger.warning("Image too large for vision rename: %d bytes", file_size)
+                    use_vision = False
+                    raise ValueError("Image too large")
                 with open(file_path, "rb") as f:
                     image_base64 = base64.b64encode(f.read()).decode("utf-8")
             except Exception as e:
@@ -59,6 +65,12 @@ async def suggest_rename(
             try:
                 import base64
                 import fitz
+                # Check file size before processing (limit to 50 MB)
+                file_size = os.path.getsize(file_path)
+                if file_size > 50 * 1024 * 1024:
+                    logger.warning("PDF too large for vision rename: %d bytes", file_size)
+                    use_vision = False
+                    raise ValueError("PDF too large")
                 doc = fitz.open(file_path)
                 if len(doc) > 0:
                     pix = doc[0].get_pixmap(dpi=150)
@@ -176,11 +188,25 @@ async def apply_rename(doc_id: str, new_name: str) -> str:
     if not current_path or not os.path.exists(current_path):
         raise FileNotFoundError(f"File not found: {current_path}")
 
+    # Validate current_path is inside allowed directories
+    settings = get_settings()
+    resolved_current = os.path.realpath(current_path)
+    allowed_dirs = [
+        os.path.realpath(settings.sorted_folder),
+        os.path.realpath(settings.watch_folder),
+    ]
+    if not any(resolved_current.startswith(d + os.sep) for d in allowed_dirs):
+        raise ValueError(f"File is outside allowed directories: {current_path}")
+
     # Build new path in same directory
     directory = os.path.dirname(current_path)
     new_name = sanitize_filename(Path(new_name).stem) + Path(new_name).suffix
     new_path = os.path.join(directory, new_name)
     new_path = ensure_unique_path(new_path)
+
+    # Verify new_path stays in same directory (defense in depth)
+    if os.path.realpath(os.path.dirname(new_path)) != os.path.realpath(directory):
+        raise ValueError("Rename would move file outside its directory")
 
     # Rename on disk
     os.rename(current_path, new_path)

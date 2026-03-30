@@ -20,10 +20,14 @@ from tests.conftest import make_embedding
 
 def _mock_qdrant_no_duplicate():
     """Return a mock Qdrant client that finds no duplicates."""
+    empty_response = MagicMock()
+    empty_response.points = []
+
     qdrant = AsyncMock()
-    qdrant.search = AsyncMock(return_value=[])  # no duplicates
+    qdrant.query_points = AsyncMock(return_value=empty_response)
     qdrant.upsert = AsyncMock()
     qdrant.scroll = AsyncMock(return_value=([], None))
+    qdrant.set_payload = AsyncMock()
     return qdrant
 
 
@@ -36,8 +40,11 @@ def _mock_qdrant_with_duplicate(score=0.98):
         "filename": "existing_file.txt",
     }
 
+    query_response = MagicMock()
+    query_response.points = [match]
+
     qdrant = AsyncMock()
-    qdrant.search = AsyncMock(return_value=[match])
+    qdrant.query_points = AsyncMock(return_value=query_response)
     qdrant.upsert = AsyncMock()
     qdrant.scroll = AsyncMock(return_value=([], None))
     return qdrant
