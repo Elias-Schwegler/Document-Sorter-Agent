@@ -89,6 +89,8 @@ export const documents = {
       method: 'POST',
       body: JSON.stringify({ suggested_name: newName, apply: true }),
     }),
+
+  reconcile: () => request('/documents/reconcile', { method: 'POST' }),
 }
 
 // Chat

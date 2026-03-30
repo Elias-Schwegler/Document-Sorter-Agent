@@ -4,7 +4,7 @@ import {
   AlertCircle, Clock, HardDrive, Bot, Monitor, Globe,
 } from 'lucide-react'
 import ModelSelector from '../components/ModelSelector'
-import { settings as settingsApi, backup as backupApi, bot as botApi } from '../api'
+import { settings as settingsApi, backup as backupApi, bot as botApi, documents as documentsApi } from '../api'
 import { ToastContext } from '../App'
 import { useI18n, LANGUAGES } from '../i18n'
 import './SettingsPage.css'
@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [snapshots, setSnapshots] = useState([])
   const [snapshotLoading, setSnapshotLoading] = useState(false)
+  const [reconcileLoading, setReconcileLoading] = useState(false)
   const [ollamaStatus, setOllamaStatus] = useState(null)
   const [botStatus, setBotStatus] = useState(null)
   const [botInstances, setBotInstances] = useState([])
@@ -99,6 +100,23 @@ export default function SettingsPage() {
       addToast(err.message, 'error')
     } finally {
       setSnapshotLoading(false)
+    }
+  }
+
+  const handleReconcile = async () => {
+    setReconcileLoading(true)
+    try {
+      const result = await documentsApi.reconcile()
+      const parts = []
+      if (result.ok) parts.push(`${result.ok} ok`)
+      if (result.moved) parts.push(`${result.moved} moved`)
+      if (result.deleted) parts.push(`${result.deleted} deleted`)
+      if (result.updated) parts.push(`${result.updated} updated`)
+      addToast(`Reconciliation complete: ${parts.join(', ')}`, 'success')
+    } catch (err) {
+      addToast(err.message, 'error')
+    } finally {
+      setReconcileLoading(false)
     }
   }
 
@@ -250,6 +268,27 @@ export default function SettingsPage() {
                 <HardDrive size={14} />
               )}
               Snapshot
+            </button>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-label">Reconcile Filesystem</span>
+              <span className="settings-desc">
+                Scan for moved, renamed, or deleted files and update the database.
+              </span>
+            </div>
+            <button
+              className="btn btn-secondary"
+              onClick={handleReconcile}
+              disabled={reconcileLoading}
+            >
+              {reconcileLoading ? (
+                <Loader size={14} className="spinning" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              Reconcile
             </button>
           </div>
 

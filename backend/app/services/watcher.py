@@ -166,6 +166,16 @@ async def _watch_folder() -> None:
     folder = settings.watch_folder
     logger.info("File watcher started – monitoring %s", folder)
 
+    # Reconcile Qdrant with filesystem (detect moved/deleted files)
+    try:
+        from app.services.reconcile import reconcile_documents
+        result = await reconcile_documents()
+        logger.info("Reconciliation: %d ok, %d moved, %d deleted, %d updated",
+                     result.get("ok", 0), result.get("moved", 0),
+                     result.get("deleted", 0), result.get("updated", 0))
+    except Exception:
+        logger.exception("Reconciliation failed")
+
     # First, process any files that were already in the folder before the watcher started
     try:
         await _scan_existing_files(folder)

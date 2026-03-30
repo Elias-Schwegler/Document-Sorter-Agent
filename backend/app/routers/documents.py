@@ -147,6 +147,19 @@ async def get_needs_rename():
 
 
 # ---------------------------------------------------------------------------
+# Reconcile filesystem
+# ---------------------------------------------------------------------------
+
+
+@router.post("/reconcile")
+async def reconcile():
+    """Reconcile Qdrant records with filesystem. Fixes moved/deleted files."""
+    from app.services.reconcile import reconcile_documents
+    result = await reconcile_documents()
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Dismiss rename
 # ---------------------------------------------------------------------------
 
@@ -562,7 +575,31 @@ async def download_document(doc_id: str):
     filename = payload.get("filename", "download")
 
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
+        # Try to find file by name in sorted/ and watch/ folders
+        from app.services.reconcile import find_file_on_disk
+        found = find_file_on_disk(filename, [settings.sorted_folder, settings.watch_folder])
+        if found:
+            file_path = found
+            # Update Qdrant with new path
+            try:
+                doc_id = payload.get("doc_id", "")
+                all_pts, _ = await qdrant.scroll(
+                    collection_name=settings.qdrant_collection,
+                    scroll_filter=Filter(must=[
+                        FieldCondition(key="doc_id", match=MatchValue(value=doc_id)),
+                    ]),
+                    limit=1000, with_payload=False,
+                )
+                if all_pts:
+                    await qdrant.set_payload(
+                        collection_name=settings.qdrant_collection,
+                        payload={"file_path": file_path},
+                        points=[p.id for p in all_pts],
+                    )
+            except Exception:
+                logger.warning("Failed to update file_path in Qdrant for %s", filename)
+        else:
+            raise HTTPException(status_code=404, detail="File not found on disk")
 
     # Ensure file_path is within an allowed directory to prevent arbitrary file reads
     resolved = os.path.realpath(file_path)
@@ -614,7 +651,32 @@ async def preview_document(doc_id: str):
     file_type = payload.get("file_type", "")
 
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found on disk")
+        # Try to find file by name in sorted/ and watch/ folders
+        from app.services.reconcile import find_file_on_disk
+        fname = payload.get("filename", "")
+        found = find_file_on_disk(fname, [settings.sorted_folder, settings.watch_folder])
+        if found:
+            file_path = found
+            # Update Qdrant with new path
+            try:
+                did = payload.get("doc_id", "")
+                all_pts, _ = await qdrant.scroll(
+                    collection_name=settings.qdrant_collection,
+                    scroll_filter=Filter(must=[
+                        FieldCondition(key="doc_id", match=MatchValue(value=did)),
+                    ]),
+                    limit=1000, with_payload=False,
+                )
+                if all_pts:
+                    await qdrant.set_payload(
+                        collection_name=settings.qdrant_collection,
+                        payload={"file_path": file_path},
+                        points=[p.id for p in all_pts],
+                    )
+            except Exception:
+                logger.warning("Failed to update file_path in Qdrant for %s", fname)
+        else:
+            raise HTTPException(status_code=404, detail="File not found on disk")
 
     resolved = os.path.realpath(file_path)
     allowed_dirs = [
