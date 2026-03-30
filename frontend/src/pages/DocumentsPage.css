@@ -1,5 +1,5 @@
 .documents-page .file-upload {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 /* Folder approval section */
@@ -57,30 +57,21 @@
   color: var(--warning);
 }
 
-.folder-approval-preview {
-  font-size: 11px;
-  color: var(--text-secondary);
-  opacity: 0.7;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 400px;
-}
-
 .folder-approval-actions {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
 }
 
+/* Main layout */
 .documents-layout {
   display: flex;
-  gap: 24px;
-  margin-top: 20px;
+  gap: 16px;
+  margin-top: 16px;
 }
 
 .documents-sidebar {
-  width: 260px;
+  width: 220px;
   flex-shrink: 0;
 }
 
@@ -89,9 +80,85 @@
   min-width: 0;
 }
 
+/* Preview panel */
+.documents-preview {
+  width: 380px;
+  flex-shrink: 0;
+  padding: 16px;
+  align-self: flex-start;
+  position: sticky;
+  top: 16px;
+}
+
+.doc-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.doc-preview-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.doc-preview-name {
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--accent);
+  padding: 6px 10px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+
+.doc-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.doc-preview-image {
+  margin-bottom: 12px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doc-preview-image img {
+  max-width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+}
+
+.doc-preview-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.doc-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Document list */
 .documents-search {
   position: relative;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .documents-search-icon {
@@ -107,10 +174,72 @@
   padding-left: 42px !important;
 }
 
-.documents-grid {
+.documents-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+}
+
+.doc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.doc-row:hover {
+  background: var(--bg-tertiary);
+}
+
+.doc-row.selected {
+  background: rgba(88, 166, 255, 0.1);
+  border-left: 3px solid var(--accent);
+}
+
+.doc-row-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.doc-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doc-row-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.doc-row-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.doc-row:hover .doc-row-actions {
+  opacity: 1;
 }
 
 .documents-loading {
@@ -133,26 +262,28 @@
 
 /* Pending files section */
 .pending-section {
-  margin-bottom: 20px;
-  padding: 16px;
-  background: var(--bg-secondary, #f8f9fa);
-  border: 1px solid var(--border-color, #e2e8f0);
-  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
 .pending-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  padding: 12px 16px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  cursor: pointer;
+  list-style: none;
 }
+
+.pending-title::-webkit-details-marker { display: none; }
 
 .pending-spinner {
   animation: spin 1.5s linear infinite;
-  color: var(--accent, #3b82f6);
+  color: var(--accent);
 }
 
 @keyframes spin {
@@ -163,23 +294,22 @@
 .pending-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
+  padding: 0 12px 12px;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .pending-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--bg-primary, #fff);
-  border-radius: 6px;
-  font-size: 13px;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
 }
 
-.pending-icon {
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
+.pending-icon { color: var(--text-secondary); flex-shrink: 0; }
 
 .pending-filename {
   flex: 1;
@@ -192,18 +322,17 @@
 
 .pending-size {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 
 .pending-badge {
-  font-size: 11px;
+  font-size: 10px;
   padding: 2px 8px;
   border-radius: 10px;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   flex-shrink: 0;
-  white-space: nowrap;
 }
 
 .pending-badge.active {
@@ -212,29 +341,27 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  animation: pulse-badge 2s ease-in-out infinite;
 }
 
-.pending-spinner-inline {
-  animation: spin 1s linear infinite;
-}
+.pending-spinner-inline { animation: spin 1s linear infinite; }
 
 .pending-item.active {
-  background: rgba(88, 166, 255, 0.08);
-  border-left: 3px solid var(--accent);
+  background: rgba(88, 166, 255, 0.06);
+  border-left: 2px solid var(--accent);
 }
 
-@keyframes pulse-badge {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+.pending-more {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px;
+}
+
+@media (max-width: 1100px) {
+  .documents-preview { display: none; }
 }
 
 @media (max-width: 900px) {
-  .documents-layout {
-    flex-direction: column;
-  }
-
-  .documents-sidebar {
-    width: 100%;
-  }
+  .documents-layout { flex-direction: column; }
+  .documents-sidebar { width: 100%; }
 }
