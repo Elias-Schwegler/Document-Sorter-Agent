@@ -58,7 +58,9 @@ export default function FolderTree({ activeFolder, onSelectFolder }) {
   const loadFolders = useCallback(async () => {
     try {
       const result = await foldersApi.list()
-      setFolderList(result.folders || result || [])
+      const raw = result.folders || result || []
+      // API returns strings, normalize to objects
+      setFolderList(raw.map(f => typeof f === 'string' ? { name: f } : f))
     } catch {
       // Folders endpoint may not be available
     }
