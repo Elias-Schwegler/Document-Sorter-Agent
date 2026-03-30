@@ -139,6 +139,119 @@ async def get_needs_rename():
 
 
 # ---------------------------------------------------------------------------
+# Pending folder approvals
+# ---------------------------------------------------------------------------
+
+
+@router.get("/pending-folders")
+async def get_pending_folders():
+    """List documents with proposed new folders awaiting approval."""
+    settings = get_settings()
+    qdrant = await get_qdrant()
+    points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+        ]),
+        limit=10000,
+        with_payload=True,
+    )
+    results = []
+    for p in points:
+        payload = p.payload or {}
+        pending = payload.get("pending_folder", "")
+        if pending:
+            results.append({
+                "doc_id": payload.get("doc_id", ""),
+                "filename": payload.get("filename", ""),
+                "current_folder": payload.get("folder", ""),
+                "proposed_folder": pending,
+                "file_type": payload.get("file_type", ""),
+                "text_preview": (payload.get("full_text", "") or payload.get("chunk_text", ""))[:200],
+            })
+    return {"documents": results, "total": len(results)}
+
+
+class FolderApprovalRequest(BaseModel):
+    doc_id: str
+    approved_folder: str  # the folder name to move to (can be the proposed one or a custom one)
+
+
+@router.post("/approve-folder")
+async def approve_folder(body: FolderApprovalRequest):
+    """Approve a proposed folder: create it, move the file, update Qdrant."""
+    settings = get_settings()
+    qdrant = await get_qdrant()
+
+    # Get the document
+    points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="doc_id", match=MatchValue(value=body.doc_id)),
+            FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+        ]),
+        limit=1, with_payload=True,
+    )
+    if not points:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    payload = points[0].payload or {}
+    current_path = payload.get("file_path", "")
+    folder_name = body.approved_folder.strip().lower().replace(" ", "_")
+
+    if not folder_name:
+        raise HTTPException(status_code=400, detail="Folder name required")
+
+    # Create folder and move file
+    dest_dir = os.path.join(settings.sorted_folder, folder_name)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    if current_path and os.path.exists(current_path):
+        new_path = move_file(current_path, dest_dir)
+
+        # Update all chunks
+        all_points, _ = await qdrant.scroll(
+            collection_name=settings.qdrant_collection,
+            scroll_filter=Filter(must=[
+                FieldCondition(key="doc_id", match=MatchValue(value=body.doc_id)),
+            ]),
+            limit=1000, with_payload=False,
+        )
+        if all_points:
+            await qdrant.set_payload(
+                collection_name=settings.qdrant_collection,
+                payload={"folder": folder_name, "file_path": new_path, "pending_folder": ""},
+                points=[p.id for p in all_points],
+            )
+        logger.info("Folder approved: %s → %s", payload.get("filename"), folder_name)
+        return {"status": "ok", "folder": folder_name, "new_path": os.path.basename(new_path)}
+    else:
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+
+@router.post("/reject-folder")
+async def reject_folder(body: FolderApprovalRequest):
+    """Reject a proposed folder: clear pending_folder, keep in _review."""
+    settings = get_settings()
+    qdrant = await get_qdrant()
+
+    all_points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="doc_id", match=MatchValue(value=body.doc_id)),
+        ]),
+        limit=1000, with_payload=False,
+    )
+    if all_points:
+        await qdrant.set_payload(
+            collection_name=settings.qdrant_collection,
+            payload={"pending_folder": ""},
+            points=[p.id for p in all_points],
+        )
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
 # Bulk rename
 # ---------------------------------------------------------------------------
 

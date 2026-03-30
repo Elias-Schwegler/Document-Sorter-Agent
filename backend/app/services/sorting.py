@@ -63,11 +63,25 @@ async def sort_document(
         folder = "_review"
         confidence = 0.0
 
+    # Normalize: strip underscores from "review" variants
+    if folder in ("review", "_review", "unsorted", "_unsorted"):
+        folder = "_review"
+        confidence = 0.0
+
     # Apply confidence threshold
     if confidence < settings.sort_confidence_threshold:
         folder = "_review"
 
     is_new_folder = folder not in existing_folders and folder != "_review"
+
+    # If AI proposes a new folder, store it as pending for user approval
+    # Don't auto-create — put in _review with pending_folder metadata
+    if is_new_folder:
+        logger.info("New folder proposed: '%s' — awaiting approval (doc %s)", folder, doc_id)
+        proposed_folder = folder
+        folder = "_review"  # Keep in _review until approved
+    else:
+        proposed_folder = ""
 
     # Move the file to sorted/{folder}/
     dest_dir = os.path.join(settings.sorted_folder, folder)
@@ -102,7 +116,7 @@ async def sort_document(
             limit=1000,
         )
         for point in all_points:
-            payload_update = {"folder": folder, "file_path": new_path}
+            payload_update = {"folder": folder, "file_path": new_path, "pending_folder": proposed_folder}
             await qdrant.set_payload(
                 collection_name=settings.qdrant_collection,
                 payload=payload_update,

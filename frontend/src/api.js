@@ -25,6 +25,20 @@ export const documents = {
 
   pending: () => request('/documents/pending'),
 
+  pendingFolders: () => request('/documents/pending-folders'),
+
+  approveFolder: (docId, folder) =>
+    request('/documents/approve-folder', {
+      method: 'POST',
+      body: JSON.stringify({ doc_id: docId, approved_folder: folder }),
+    }),
+
+  rejectFolder: (docId) =>
+    request('/documents/reject-folder', {
+      method: 'POST',
+      body: JSON.stringify({ doc_id: docId, approved_folder: '' }),
+    }),
+
   get: (id) => request(`/documents/${id}`),
 
   upload: async (files, folder = null) => {

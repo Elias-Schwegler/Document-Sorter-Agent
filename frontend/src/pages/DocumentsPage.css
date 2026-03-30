@@ -2,6 +2,77 @@
   margin-bottom: 24px;
 }
 
+/* Folder approval section */
+.folder-approvals {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.folder-approvals-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--warning);
+  margin-bottom: 12px;
+}
+
+.folder-approvals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.folder-approval-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--warning);
+}
+
+.folder-approval-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.folder-approval-filename {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.folder-approval-proposed {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.folder-approval-proposed strong {
+  color: var(--warning);
+}
+
+.folder-approval-preview {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 400px;
+}
+
+.folder-approval-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .documents-layout {
   display: flex;
   gap: 24px;

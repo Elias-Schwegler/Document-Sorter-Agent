@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Search, ArrowUpDown, Loader2, FileText } from 'lucide-react'
+import { Search, ArrowUpDown, Loader2, FileText, FolderPlus, Check, X } from 'lucide-react'
 import useDocuments from '../hooks/useDocuments'
 import useWebSocket from '../hooks/useWebSocket'
 import { documents as docsApi } from '../api'
@@ -22,15 +22,32 @@ export default function DocumentsPage({ onDocCountChange }) {
   } = useDocuments()
   const { status: wsStatus } = useWebSocket()
   const [pendingFiles, setPendingFiles] = useState([])
+  const [pendingFolders, setPendingFolders] = useState([])
 
   const loadPending = useCallback(async () => {
     try {
       const result = await docsApi.pending()
       setPendingFiles(result.files || [])
-    } catch {
-      // silently ignore - endpoint may not be available
-    }
+    } catch {}
+    try {
+      const folders = await docsApi.pendingFolders()
+      setPendingFolders(folders.documents || [])
+    } catch {}
   }, [])
+
+  const handleApproveFolder = async (docId, folder) => {
+    try {
+      await docsApi.approveFolder(docId, folder)
+      setPendingFolders(prev => prev.filter(d => d.doc_id !== docId))
+    } catch {}
+  }
+
+  const handleRejectFolder = async (docId) => {
+    try {
+      await docsApi.rejectFolder(docId)
+      setPendingFolders(prev => prev.filter(d => d.doc_id !== docId))
+    } catch {}
+  }
 
   useEffect(() => {
     loadPending()
@@ -67,6 +84,46 @@ export default function DocumentsPage({ onDocCountChange }) {
                 <span className="pending-filename">{file.filename}</span>
                 <span className="pending-size">{formatFileSize(file.size)}</span>
                 <span className="pending-badge">Processing...</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pendingFolders.length > 0 && (
+        <div className="folder-approvals card">
+          <h3 className="folder-approvals-title">
+            <FolderPlus size={16} />
+            New Folder Proposals ({pendingFolders.length})
+          </h3>
+          <div className="folder-approvals-list">
+            {pendingFolders.map((item) => (
+              <div key={item.doc_id} className="folder-approval-item">
+                <div className="folder-approval-info">
+                  <span className="folder-approval-filename">{item.filename}</span>
+                  <span className="folder-approval-proposed">
+                    AI suggests: <strong>{item.proposed_folder}</strong>
+                  </span>
+                  {item.text_preview && (
+                    <span className="folder-approval-preview">{item.text_preview.slice(0, 100)}...</span>
+                  )}
+                </div>
+                <div className="folder-approval-actions">
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => handleApproveFolder(item.doc_id, item.proposed_folder)}
+                    title="Approve this folder"
+                  >
+                    <Check size={14} /> Approve
+                  </button>
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => handleRejectFolder(item.doc_id)}
+                    title="Keep in _review"
+                  >
+                    <X size={14} /> Keep in Review
+                  </button>
+                </div>
               </div>
             ))}
           </div>
