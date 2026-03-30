@@ -67,11 +67,52 @@ def _ocr_page_image(page, lang: str) -> str:
         return ""
 
 
+def _auto_rotate_image(img):
+    """Auto-rotate image using EXIF data and Tesseract OSD."""
+    from PIL import ImageOps
+    import pytesseract
+
+    # First, apply EXIF orientation (handles camera rotation metadata)
+    try:
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+
+    # Then try Tesseract OSD to detect text orientation
+    try:
+        osd = pytesseract.image_to_osd(img, output_type=pytesseract.Output.DICT)
+        rotation = osd.get("rotate", 0)
+        if rotation and rotation != 0:
+            logger.info("OSD detected rotation: %d degrees", rotation)
+            img = img.rotate(rotation, expand=True)
+    except Exception as e:
+        logger.debug("OSD detection failed, trying rotations: %s", e)
+        # OSD failed — try 0, 90, 180, 270 and pick the one with most text
+        best_text = ""
+        best_img = img
+        for angle in [0, 90, 180, 270]:
+            try:
+                rotated = img.rotate(angle, expand=True) if angle else img
+                text = pytesseract.image_to_string(rotated, lang="eng").strip()
+                # Simple heuristic: more alphanumeric chars = better orientation
+                alpha_count = sum(1 for c in text if c.isalnum())
+                if alpha_count > sum(1 for c in best_text if c.isalnum()):
+                    best_text = text
+                    best_img = rotated
+            except Exception:
+                continue
+        img = best_img
+
+    return img
+
+
 def _extract_image(filepath: str, lang: str) -> tuple[str, int]:
     import pytesseract
     from PIL import Image
 
     img = Image.open(filepath)
+    img = img.convert("RGB")
+    img = _auto_rotate_image(img)
     text = pytesseract.image_to_string(img, lang=lang).strip()
     return text, 1
 
