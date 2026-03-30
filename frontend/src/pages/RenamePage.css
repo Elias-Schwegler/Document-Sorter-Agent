@@ -30,6 +30,47 @@
   color: var(--text-secondary);
 }
 
+/* Filter tabs */
+.rename-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.rename-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.rename-filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.rename-filter-btn.active {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--accent);
+}
+
+.rename-generating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--accent);
+}
+
 .rename-empty {
   display: flex;
   flex-direction: column;
