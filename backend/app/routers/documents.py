@@ -290,21 +290,22 @@ async def upload_documents(files: list[UploadFile] = File(...)):
 
 
 @router.get("", response_model=DocumentListResponse)
-async def list_documents():
-    """List all documents from qdrant (chunk_index=0 entries only)."""
+async def list_documents(folder: str | None = None, search: str | None = None):
+    """List documents from qdrant. Optionally filter by folder and/or search term."""
     settings = get_settings()
     qdrant = await get_qdrant()
 
+    filter_conditions = [
+        FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+    ]
+    if folder:
+        filter_conditions.append(
+            FieldCondition(key="folder", match=MatchValue(value=folder)),
+        )
+
     points, _ = await qdrant.scroll(
         collection_name=settings.qdrant_collection,
-        scroll_filter=Filter(
-            must=[
-                FieldCondition(
-                    key="chunk_index",
-                    match=MatchValue(value=0),
-                ),
-            ]
-        ),
+        scroll_filter=Filter(must=filter_conditions),
         limit=10000,
         with_payload=True,
         with_vectors=False,
@@ -313,10 +314,16 @@ async def list_documents():
     documents = []
     for point in points:
         payload = point.payload or {}
+        filename = payload.get("filename", "")
+
+        # Apply text search filter (client-side since Qdrant doesn't do substring match)
+        if search and search.lower() not in filename.lower():
+            continue
+
         documents.append(
             DocumentResponse(
                 doc_id=payload.get("doc_id", ""),
-                filename=payload.get("filename", ""),
+                filename=filename,
                 original_filename=payload.get("original_filename", ""),
                 folder=payload.get("folder", ""),
                 file_type=payload.get("file_type", ""),

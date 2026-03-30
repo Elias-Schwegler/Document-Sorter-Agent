@@ -93,6 +93,64 @@ async def _scan_existing_files(folder: str) -> None:
         await asyncio.sleep(INGEST_DELAY_SECONDS)
 
 
+async def _scan_sorted_folders(sorted_folder: str) -> None:
+    """Scan sorted/ subfolders for files missing from Qdrant (e.g., after a DB reset)."""
+    sorted_path = Path(sorted_folder)
+    if not sorted_path.exists():
+        return
+
+    pending = []
+    for subfolder in sorted(sorted_path.iterdir()):
+        if not subfolder.is_dir() or subfolder.name.startswith("."):
+            continue
+        folder_name = subfolder.name
+        for path in sorted(subfolder.iterdir(), key=lambda p: p.stat().st_mtime):
+            if not path.is_file():
+                continue
+            ext = path.suffix.lower().lstrip(".")
+            if ext not in SUPPORTED_EXTENSIONS:
+                continue
+            if await _is_already_ingested(path.name):
+                continue
+            pending.append((path, folder_name))
+
+    if not pending:
+        logger.info("Sorted scan: all files already indexed")
+        return
+
+    logger.info("Sorted scan: found %d un-ingested file(s) in sorted folders", len(pending))
+
+    for path, folder_name in pending:
+        logger.info("Re-ingesting sorted file: %s (folder: %s)", path.name, folder_name)
+        try:
+            from app.services.ingestion import ingest_document
+            doc = await ingest_document(str(path), source="watcher")
+            # Update the folder in Qdrant since the file is already in the right place
+            if hasattr(doc, 'doc_id'):
+                from app.dependencies import get_qdrant
+                from app.config import get_settings
+                from qdrant_client.models import Filter, FieldCondition, MatchValue
+                qdrant = await get_qdrant()
+                settings = get_settings()
+                points, _ = await qdrant.scroll(
+                    collection_name=settings.qdrant_collection,
+                    scroll_filter=Filter(must=[
+                        FieldCondition(key="doc_id", match=MatchValue(value=doc.doc_id)),
+                    ]),
+                    limit=100, with_payload=False,
+                )
+                if points:
+                    await qdrant.set_payload(
+                        collection_name=settings.qdrant_collection,
+                        payload={"folder": folder_name},
+                        points=[p.id for p in points],
+                    )
+            logger.info("Re-ingestion complete: %s → %s", path.name, folder_name)
+        except Exception:
+            logger.exception("Failed to re-ingest %s", path.name)
+        await asyncio.sleep(INGEST_DELAY_SECONDS)
+
+
 async def _watch_folder() -> None:
     settings = get_settings()
     folder = settings.watch_folder
@@ -103,6 +161,12 @@ async def _watch_folder() -> None:
         await _scan_existing_files(folder)
     except Exception:
         logger.exception("Startup scan failed")
+
+    # Also scan sorted/ subfolders for files that lost their Qdrant records
+    try:
+        await _scan_sorted_folders(settings.sorted_folder)
+    except Exception:
+        logger.exception("Sorted folder scan failed")
 
     try:
         async for changes in awatch(folder):
