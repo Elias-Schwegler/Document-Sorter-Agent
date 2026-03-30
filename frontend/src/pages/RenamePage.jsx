@@ -19,6 +19,7 @@ export default function RenamePage({ onRenameCountChange }) {
   const [customName, setCustomName] = useState('')
   const [loading, setLoading] = useState(true)
   const [generatingId, setGeneratingId] = useState(null) // track WHICH doc is generating
+  const [suggestionsOverride, setSuggestionsOverride] = useState({}) // doc_id -> suggestions
   const [applying, setApplying] = useState(false)
   const [bulkApplying, setBulkApplying] = useState(false)
   const [autoRename, setAutoRename] = useState(false)
@@ -55,18 +56,22 @@ export default function RenamePage({ onRenameCountChange }) {
 
   const selected = docs.find(d => d.doc_id === selectedId)
 
+  // Get suggestions for a doc (check override first, then original data)
+  const getSuggestions = (doc) => {
+    return suggestionsOverride[doc.doc_id] || doc.rename_suggestions || []
+  }
+
   const handleSelect = async (doc) => {
     setSelectedId(doc.doc_id)
     setSelectedName('')
     setCustomName('')
     // If no suggestions yet, generate them — but only for THIS doc
-    if (!doc.rename_suggestions || doc.rename_suggestions.length === 0) {
+    const existing = getSuggestions(doc)
+    if (existing.length === 0) {
       setGeneratingId(doc.doc_id)
       try {
         const res = await documents.generateSuggestions(doc.doc_id)
-        setDocs(prev => prev.map(d =>
-          d.doc_id === doc.doc_id ? { ...d, rename_suggestions: res.suggestions } : d
-        ))
+        setSuggestionsOverride(prev => ({ ...prev, [doc.doc_id]: res.suggestions }))
       } catch (err) {
         addToast('Failed to generate suggestions', 'error')
       } finally { setGeneratingId(null) }
@@ -96,9 +101,7 @@ export default function RenamePage({ onRenameCountChange }) {
     setGeneratingId(selectedId)
     try {
       const res = await documents.generateSuggestions(selectedId)
-      setDocs(prev => prev.map(d =>
-        d.doc_id === selectedId ? { ...d, rename_suggestions: res.suggestions } : d
-      ))
+      setSuggestionsOverride(prev => ({ ...prev, [selectedId]: res.suggestions }))
       setSelectedName('')
       setCustomName('')
     } catch { addToast('Regeneration failed', 'error') }
@@ -107,8 +110,8 @@ export default function RenamePage({ onRenameCountChange }) {
 
   const handleBulkApprove = async () => {
     const items = filteredDocs
-      .filter(d => d.rename_suggestions && d.rename_suggestions.length > 0)
-      .map(d => ({ doc_id: d.doc_id, new_name: d.rename_suggestions[0] }))
+      .filter(d => getSuggestions(d).length > 0)
+      .map(d => ({ doc_id: d.doc_id, new_name: getSuggestions(d)[0] }))
     if (items.length === 0) {
       addToast('No documents with suggestions to approve', 'info')
       return
@@ -235,8 +238,8 @@ export default function RenamePage({ onRenameCountChange }) {
                         <Loader size={10} className="spinning" /> generating...
                       </span>
                     )}
-                    {generatingId !== doc.doc_id && (doc.rename_suggestions?.length || 0) > 0 && (
-                      <span className="rename-suggestion-count">{doc.rename_suggestions.length} suggestions</span>
+                    {generatingId !== doc.doc_id && getSuggestions(doc).length > 0 && (
+                      <span className="rename-suggestion-count">{getSuggestions(doc).length} suggestions</span>
                     )}
                   </span>
                 </div>
@@ -292,7 +295,7 @@ export default function RenamePage({ onRenameCountChange }) {
                     </div>
                   ) : (
                     <div className="rename-suggestion-pills">
-                      {(selected.rename_suggestions || []).map((s, i) => (
+                      {getSuggestions(selected).map((s, i) => (
                         <button
                           key={i}
                           className={`rename-pill ${selectedName === s ? 'active' : ''}`}
