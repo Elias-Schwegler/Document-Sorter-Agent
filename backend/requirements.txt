@@ -15,5 +15,5 @@ pydantic-settings>=2.7
 aiofiles>=24.1
 python-telegram-bot[job-queue]>=21.0
 transformers>=4.45
-torch>=2.1
 einops>=0.8
+huggingface_hub>=0.26,<0.30

@@ -65,6 +65,7 @@ services:
       - ./data/sorted:/app/data/sorted
       - ./data/qdrant_snapshots:/app/data/qdrant_snapshots
       - ./data/telegram_sessions:/app/data/telegram_sessions
+      - ./data/hf_cache:/root/.cache/huggingface
     env_file:
       - .env
     depends_on:
