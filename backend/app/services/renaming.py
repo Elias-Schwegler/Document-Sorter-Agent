@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.dependencies import get_qdrant, get_http_client
 from app.models.document import RenameSuggestions
 from app.utils.file_utils import sanitize_filename, ensure_unique_path
-from app.utils.prompt_templates import RENAME_PROMPT
+from app.utils.prompt_templates import RENAME_PROMPT, RENAME_IMAGE_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +25,58 @@ def looks_like_scan_name(filename: str) -> bool:
 
 
 async def suggest_rename(
-    doc_id: str, text: str, current_name: str
+    doc_id: str, text: str, current_name: str, file_path: str = ""
 ) -> RenameSuggestions:
     """Use AI to suggest descriptive filenames for a document.
 
     Calls Ollama chat API with document content and returns a RenameSuggestions
     with up to 3 suggestions. Does NOT apply the rename.
+
+    If text is sparse and file_path points to an image or PDF, uses the vision
+    model to describe the image content for better naming.
     """
     settings = get_settings()
     client = await get_http_client()
 
-    content_preview = text[:2000]
-    prompt = RENAME_PROMPT.format(
-        current_name=current_name, content=content_preview
-    )
+    # Decide whether to use vision (image analysis) or text-based naming
+    use_vision = False
+    image_base64 = None
+    text_is_sparse = len(text.strip()) < 100
+
+    if file_path and text_is_sparse:
+        ext = Path(file_path).suffix.lower().lstrip(".")
+        if ext in ("png", "jpg", "jpeg", "tiff", "tif", "bmp", "gif", "webp"):
+            use_vision = True
+            try:
+                import base64
+                with open(file_path, "rb") as f:
+                    image_base64 = base64.b64encode(f.read()).decode("utf-8")
+            except Exception as e:
+                logger.warning("Failed to read image for vision rename: %s", e)
+                use_vision = False
+        elif ext == "pdf":
+            use_vision = True
+            try:
+                import base64
+                import fitz
+                doc = fitz.open(file_path)
+                if len(doc) > 0:
+                    pix = doc[0].get_pixmap(dpi=150)
+                    image_base64 = base64.b64encode(pix.tobytes("jpeg")).decode("utf-8")
+                doc.close()
+            except Exception as e:
+                logger.warning("Failed to render PDF for vision rename: %s", e)
+                use_vision = False
+
+    if use_vision and image_base64:
+        prompt = RENAME_IMAGE_PROMPT.format(current_name=current_name)
+        messages = [{"role": "user", "content": prompt, "images": [image_base64]}]
+    else:
+        content_preview = text[:2000]
+        prompt = RENAME_PROMPT.format(
+            current_name=current_name, content=content_preview
+        )
+        messages = [{"role": "user", "content": prompt}]
 
     suggestions = []
     try:
@@ -47,7 +85,7 @@ async def suggest_rename(
             url,
             json={
                 "model": settings.agent_model,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
                 "stream": False,
                 "think": False,
             },

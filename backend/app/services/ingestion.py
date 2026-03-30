@@ -222,7 +222,7 @@ async def ingest_document(
         try:
             from app.services.renaming import suggest_rename, apply_rename
 
-            rename_result = await suggest_rename(doc_id, text, filename)
+            rename_result = await suggest_rename(doc_id, text, filename, file_path=filepath)
             if rename_result.suggestions:
                 new_path = await apply_rename(doc_id, rename_result.suggestions[0])
                 doc_meta.filename = os.path.basename(new_path)
@@ -234,7 +234,7 @@ async def ingest_document(
         try:
             from app.services.renaming import suggest_rename, store_suggestions
 
-            rename_result = await suggest_rename(doc_id, text, filename)
+            rename_result = await suggest_rename(doc_id, text, filename, file_path=filepath)
             if rename_result.suggestions:
                 await store_suggestions(doc_id, rename_result.suggestions)
                 logger.info("Stored %d rename suggestions for %s", len(rename_result.suggestions), filename)

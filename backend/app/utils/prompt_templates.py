@@ -34,6 +34,24 @@ Instructions:
 Response format:
 {{"suggestions": ["descriptive_name_1", "descriptive_name_2", "descriptive_name_3"], "reasoning": "brief explanation"}}"""
 
+RENAME_IMAGE_PROMPT = """You are a document naming assistant. Look at this image and suggest clear, descriptive filenames for it.
+
+Current filename: {current_name}
+
+Instructions:
+- Describe what you see in the image and suggest a filename based on the visual content.
+- If it's a photo of people at an event, describe the event (e.g., "conference_presentation_2025").
+- If it's a scanned document, describe the document type (e.g., "insurance_contract_2026").
+- If it's a receipt or invoice, include the vendor and date if visible.
+- Use lowercase with underscores.
+- Include relevant dates if visible (YYYY or YYYY_MM format).
+- Keep it concise but informative (3-6 words max).
+- Do NOT include the file extension.
+- Respond ONLY with valid JSON, no other text.
+
+Response format:
+{{"suggestions": ["descriptive_name_1", "descriptive_name_2", "descriptive_name_3"], "reasoning": "brief explanation"}}"""
+
 RAG_SYSTEM_PROMPT = """You are a helpful document assistant. Answer questions based on the provided document context. Always cite which document(s) your answer comes from.
 
 If the context doesn't contain enough information to answer the question, say so clearly rather than making up information.

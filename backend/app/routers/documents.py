@@ -204,7 +204,8 @@ async def generate_suggestions(doc_id: str):
     payload = points[0].payload or {}
     text = payload.get("full_text", "") or payload.get("chunk_text", "")
     filename = payload.get("filename", "")
-    result = await suggest_rename(doc_id, text, filename)
+    file_path = payload.get("file_path", "")
+    result = await suggest_rename(doc_id, text, filename, file_path=file_path)
     if result.suggestions:
         await store_suggestions(doc_id, result.suggestions)
     return {"doc_id": doc_id, "suggestions": result.suggestions}
