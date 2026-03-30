@@ -123,7 +123,8 @@ async def get_needs_rename():
         payload = p.payload or {}
         fname = payload.get("filename", "")
         suggestions = payload.get("rename_suggestions", [])
-        if looks_like_scan_name(fname) or suggestions:
+        dismissed = payload.get("rename_dismissed", False)
+        if not dismissed and (looks_like_scan_name(fname) or suggestions):
             results.append({
                 "doc_id": payload.get("doc_id", ""),
                 "filename": fname,
@@ -136,6 +137,33 @@ async def get_needs_rename():
                 "rename_suggestions": suggestions,
             })
     return {"documents": results, "total": len(results)}
+
+
+# ---------------------------------------------------------------------------
+# Dismiss rename
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{doc_id}/dismiss-rename")
+async def dismiss_rename(doc_id: str):
+    """Dismiss a document from the rename queue permanently."""
+    settings = get_settings()
+    qdrant = await get_qdrant()
+    all_points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="doc_id", match=MatchValue(value=doc_id)),
+        ]),
+        limit=1000, with_payload=False,
+    )
+    if not all_points:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await qdrant.set_payload(
+        collection_name=settings.qdrant_collection,
+        payload={"rename_dismissed": True, "rename_suggestions": []},
+        points=[p.id for p in all_points],
+    )
+    return {"status": "ok"}
 
 
 # ---------------------------------------------------------------------------

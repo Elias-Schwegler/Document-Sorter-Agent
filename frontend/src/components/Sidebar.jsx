@@ -1,10 +1,26 @@
+import { useState, useEffect, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
-import { MessageSquare, FileText, Pencil, Send, Settings, Menu, X } from 'lucide-react'
+import { MessageSquare, FileText, Pencil, Send, Settings, Menu, X, Cpu } from 'lucide-react'
 import { useI18n } from '../i18n'
+import { documents as docsApi } from '../api'
 import './Sidebar.css'
 
 export default function Sidebar({ isOpen, onToggle, docCount, renameCount }) {
   const { t } = useI18n()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  const pollPending = useCallback(async () => {
+    try {
+      const res = await docsApi.pending()
+      setPendingCount(res.total || 0)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    pollPending()
+    const interval = setInterval(pollPending, 10000)
+    return () => clearInterval(interval)
+  }, [pollPending])
 
   const navItems = [
     { to: '/', icon: MessageSquare, labelKey: 'nav.chat' },
@@ -54,6 +70,12 @@ export default function Sidebar({ isOpen, onToggle, docCount, renameCount }) {
         </nav>
 
         <div className="sidebar-footer">
+          {pendingCount > 0 && (
+            <div className="sidebar-processing">
+              <Cpu size={14} className="sidebar-processing-icon" />
+              <span>Processing {pendingCount} doc{pendingCount !== 1 ? 's' : ''}...</span>
+            </div>
+          )}
           <div className="sidebar-version">v1.0.0</div>
         </div>
       </aside>

@@ -96,6 +96,28 @@
   border-top: 1px solid var(--border);
 }
 
+.sidebar-processing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--accent);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: rgba(88, 166, 255, 0.08);
+  border-radius: var(--radius-md);
+}
+
+.sidebar-processing-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 .sidebar-version {
   font-size: 12px;
   color: var(--text-secondary);

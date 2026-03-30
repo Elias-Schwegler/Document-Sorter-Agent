@@ -33,6 +33,9 @@ export const documents = {
       body: JSON.stringify({ doc_id: docId, approved_folder: folder }),
     }),
 
+  dismissRename: (id) =>
+    request(`/documents/${id}/dismiss-rename`, { method: 'POST' }),
+
   rejectFolder: (docId) =>
     request('/documents/reject-folder', {
       method: 'POST',

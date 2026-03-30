@@ -110,9 +110,8 @@ export default function RenamePage({ onRenameCountChange }) {
 
   const handleDiscard = async () => {
     if (!selectedId) return
-    // Remove from rename list by clearing suggestions (so it no longer shows as "needs rename")
     try {
-      await documents.applyRename(selectedId, selected.filename) // keep current name
+      await documents.dismissRename(selectedId)
       addToast('Document removed from rename queue', 'info')
       setDocs(prev => prev.filter(d => d.doc_id !== selectedId))
       const remaining = docs.filter(d => d.doc_id !== selectedId)
