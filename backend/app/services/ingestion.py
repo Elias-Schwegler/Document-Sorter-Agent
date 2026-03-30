@@ -11,6 +11,7 @@ from app.models.document import DocumentMetadata, DuplicateInfo
 from app.services.parsing import extract_text
 from app.services.chunking import chunk_text
 from app.services.embedding import embed_text, embed_texts
+from app.services.renaming import looks_like_scan_name
 from app.utils.file_utils import get_file_type, get_file_size
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,7 @@ async def ingest_document(
             "page_count": page_count,
             "ingested_at": ingested_at,
             "source": source,
+            "rename_suggestions": [],
         }
         # Store full text only on the first chunk
         if i == 0:
@@ -165,15 +167,26 @@ async def ingest_document(
     # --- Renaming ---
     if settings.auto_rename:
         try:
-            from app.services.renaming import suggest_rename, apply_rename
+            from app.services.renaming import suggest_rename, apply_rename, store_suggestions, looks_like_scan_name
 
             rename_result = await suggest_rename(doc_id, text, filename)
-            if rename_result.suggested_name:
-                new_path = await apply_rename(doc_id, rename_result.suggested_name)
+            if rename_result.suggestions:
+                new_path = await apply_rename(doc_id, rename_result.suggestions[0])
                 doc_meta.filename = os.path.basename(new_path)
                 doc_meta.file_path = new_path
         except Exception as e:
             logger.error("Auto-rename failed for %s: %s", doc_id, e)
+    elif looks_like_scan_name(filename):
+        # Generate suggestions but don't apply - user reviews on rename page
+        try:
+            from app.services.renaming import suggest_rename, store_suggestions, looks_like_scan_name
+
+            rename_result = await suggest_rename(doc_id, text, filename)
+            if rename_result.suggestions:
+                await store_suggestions(doc_id, rename_result.suggestions)
+                logger.info("Stored %d rename suggestions for %s", len(rename_result.suggestions), filename)
+        except Exception as e:
+            logger.error("Failed to generate rename suggestions for %s: %s", doc_id, e)
 
     if ws_callback:
         await ws_callback("complete")

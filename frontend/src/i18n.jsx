@@ -6,6 +6,7 @@ const translations = {
     'nav.chat': 'Chat',
     'nav.documents': 'Documents',
     'nav.telegram': 'Telegram',
+    'nav.rename': 'Rename',
     'nav.settings': 'Settings',
 
     // Chat
@@ -109,6 +110,21 @@ const translations = {
 
     // Language
     'lang.language': 'Language',
+    // Rename
+    'rename.title': 'Rename Documents',
+    'rename.no_docs': 'No documents need renaming',
+    'rename.no_docs_desc': 'Documents with scan-like names will appear here with AI suggestions.',
+    'rename.approve_all': 'Approve All',
+    'rename.auto_mode': 'Auto-rename',
+    'rename.preview': 'Document Preview',
+    'rename.current_name': 'Current name',
+    'rename.suggestions': 'AI Suggestions',
+    'rename.custom_name': 'Or type a custom name...',
+    'rename.apply': 'Apply Name',
+    'rename.regenerate': 'Regenerate',
+    'rename.generating': 'Generating suggestions...',
+    'rename.select_doc': 'Select a document to preview',
+
     'lang.en': 'English',
     'lang.de': 'Deutsch',
     'lang.fr': 'Fran\u00e7ais',
@@ -118,6 +134,7 @@ const translations = {
     'nav.chat': 'Chat',
     'nav.documents': 'Dokumente',
     'nav.telegram': 'Telegram',
+    'nav.rename': 'Umbenennen',
     'nav.settings': 'Einstellungen',
 
     'chat.title': 'Chat',
@@ -215,6 +232,20 @@ const translations = {
     'settings.not_configured': 'Nicht konfiguriert',
 
     'lang.language': 'Sprache',
+    'rename.title': 'Dokumente umbenennen',
+    'rename.no_docs': 'Keine Dokumente zum Umbenennen',
+    'rename.no_docs_desc': 'Dokumente mit Scan-Namen erscheinen hier mit KI-Vorschl\u00e4gen.',
+    'rename.approve_all': 'Alle genehmigen',
+    'rename.auto_mode': 'Auto-Umbenennung',
+    'rename.preview': 'Dokumentvorschau',
+    'rename.current_name': 'Aktueller Name',
+    'rename.suggestions': 'KI-Vorschl\u00e4ge',
+    'rename.custom_name': 'Oder eigenen Namen eingeben...',
+    'rename.apply': 'Namen anwenden',
+    'rename.regenerate': 'Neu generieren',
+    'rename.generating': 'Vorschl\u00e4ge werden generiert...',
+    'rename.select_doc': 'Dokument zur Vorschau ausw\u00e4hlen',
+
     'lang.en': 'English',
     'lang.de': 'Deutsch',
     'lang.fr': 'Fran\u00e7ais',
@@ -224,6 +255,7 @@ const translations = {
     'nav.chat': 'Chat',
     'nav.documents': 'Documents',
     'nav.telegram': 'Telegram',
+    'nav.rename': 'Renommer',
     'nav.settings': 'Param\u00e8tres',
 
     'chat.title': 'Chat',
@@ -319,6 +351,20 @@ const translations = {
     'settings.running': 'En cours',
     'settings.stopped': 'Arr\u00eat\u00e9',
     'settings.not_configured': 'Non configur\u00e9',
+
+    'rename.title': 'Renommer les documents',
+    'rename.no_docs': 'Aucun document \u00e0 renommer',
+    'rename.no_docs_desc': 'Les documents avec des noms de scan appara\u00eetront ici avec des suggestions IA.',
+    'rename.approve_all': 'Tout approuver',
+    'rename.auto_mode': 'Renommage auto',
+    'rename.preview': 'Aper\u00e7u du document',
+    'rename.current_name': 'Nom actuel',
+    'rename.suggestions': 'Suggestions IA',
+    'rename.custom_name': 'Ou saisissez un nom personnalis\u00e9...',
+    'rename.apply': 'Appliquer le nom',
+    'rename.regenerate': 'R\u00e9g\u00e9n\u00e9rer',
+    'rename.generating': 'G\u00e9n\u00e9ration des suggestions...',
+    'rename.select_doc': 'S\u00e9lectionnez un document pour aper\u00e7u',
 
     'lang.language': 'Langue',
     'lang.en': 'English',

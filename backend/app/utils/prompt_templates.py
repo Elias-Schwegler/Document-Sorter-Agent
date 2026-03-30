@@ -32,7 +32,7 @@ Instructions:
 - Respond ONLY with valid JSON, no other text.
 
 Response format:
-{{"suggested_name": "descriptive_filename", "reasoning": "brief explanation"}}"""
+{{"suggestions": ["descriptive_name_1", "descriptive_name_2", "descriptive_name_3"], "reasoning": "brief explanation"}}"""
 
 RAG_SYSTEM_PROMPT = """You are a helpful document assistant. Answer questions based on the provided document context. Always cite which document(s) your answer comes from.
 

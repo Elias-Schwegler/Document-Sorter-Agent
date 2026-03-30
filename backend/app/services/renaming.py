@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import logging
 from pathlib import Path
 
@@ -7,20 +8,29 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue
 
 from app.config import get_settings
 from app.dependencies import get_qdrant, get_http_client
-from app.models.document import RenameResult
+from app.models.document import RenameSuggestions
 from app.utils.file_utils import sanitize_filename, ensure_unique_path
 from app.utils.prompt_templates import RENAME_PROMPT
 
 logger = logging.getLogger(__name__)
 
+SCAN_NAME_PATTERN = re.compile(
+    r'^(Gescannt|gescannt|scan|Scan|SCAN|IMG|img|image|Image|Document|DOC|doc|photo|Photo|PHOTO|screenshot|Screenshot|Bildschirmfoto|DCIM|DSC|PXL)[\s_\-]',
+    re.IGNORECASE
+)
+
+def looks_like_scan_name(filename: str) -> bool:
+    stem = Path(filename).stem
+    return bool(SCAN_NAME_PATTERN.match(stem))
+
 
 async def suggest_rename(
     doc_id: str, text: str, current_name: str
-) -> RenameResult:
-    """Use AI to suggest a descriptive filename for a document.
+) -> RenameSuggestions:
+    """Use AI to suggest descriptive filenames for a document.
 
-    Calls Ollama chat API with document content and returns a RenameResult
-    with the suggested name. Does NOT apply the rename.
+    Calls Ollama chat API with document content and returns a RenameSuggestions
+    with up to 3 suggestions. Does NOT apply the rename.
     """
     settings = get_settings()
     client = await get_http_client()
@@ -30,6 +40,7 @@ async def suggest_rename(
         current_name=current_name, content=content_preview
     )
 
+    suggestions = []
     try:
         url = settings.ollama_url + "/api/chat"
         response = await client.post(
@@ -47,28 +58,56 @@ async def suggest_rename(
         message_content = data.get("message", {}).get("content", "")
         result = json.loads(message_content)
 
-        suggested = result.get("suggested_name", "").strip()
-        if not suggested:
-            suggested = Path(current_name).stem
+        raw_suggestions = result.get("suggestions", [])
+        # Fallback: if old format has suggested_name, wrap in list
+        if not raw_suggestions:
+            old_name = result.get("suggested_name", "").strip()
+            if old_name:
+                raw_suggestions = [old_name]
+
+        if not raw_suggestions:
+            raw_suggestions = [Path(current_name).stem]
 
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.warning("Failed to parse rename response: %s", e)
-        suggested = Path(current_name).stem
+        raw_suggestions = [Path(current_name).stem]
     except Exception as e:
         logger.error("Rename API call failed: %s", e)
-        suggested = Path(current_name).stem
+        raw_suggestions = [Path(current_name).stem]
 
-    # Sanitize and preserve original extension
+    # Sanitize each suggestion and preserve original extension
     ext = Path(current_name).suffix
-    suggested = sanitize_filename(suggested)
-    suggested_with_ext = suggested + ext
+    for s in raw_suggestions:
+        sanitized = sanitize_filename(s.strip())
+        if sanitized:
+            suggestions.append(sanitized + ext)
 
-    return RenameResult(
+    return RenameSuggestions(
         doc_id=doc_id,
         original_name=current_name,
-        suggested_name=suggested_with_ext,
-        applied=False,
+        suggestions=suggestions,
     )
+
+
+async def store_suggestions(doc_id: str, suggestions: list[str]) -> None:
+    settings = get_settings()
+    qdrant = await get_qdrant()
+    # Find all points for this doc_id and update payload
+    points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="doc_id", match=MatchValue(value=doc_id)),
+            FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+        ]),
+        limit=1,
+        with_payload=False,
+    )
+    if points:
+        await qdrant.set_payload(
+            collection_name=settings.qdrant_collection,
+            payload={"rename_suggestions": suggestions},
+            points=[points[0].id],
+        )
 
 
 async def apply_rename(doc_id: str, new_name: str) -> str:

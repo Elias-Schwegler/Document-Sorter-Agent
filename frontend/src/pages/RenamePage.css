@@ -1,0 +1,260 @@
+.rename-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px;
+  color: var(--text-secondary);
+}
+
+.rename-count-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.rename-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.rename-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.rename-empty h2 {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.rename-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.rename-list {
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.rename-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.rename-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.rename-item.selected {
+  background: rgba(88, 166, 255, 0.1);
+  border-left: 3px solid var(--accent);
+}
+
+.rename-item-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.rename-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rename-item-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rename-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.rename-suggestion-count {
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.badge-sm {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
+.rename-preview {
+  padding: 20px;
+  min-height: 400px;
+}
+
+.rename-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 300px;
+  color: var(--text-secondary);
+}
+
+.rename-preview-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.rename-current {
+  margin-bottom: 16px;
+}
+
+.rename-current label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.rename-current-name {
+  font-size: 14px;
+  color: var(--warning);
+  font-family: monospace;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  word-break: break-all;
+}
+
+.rename-text-preview {
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.rename-text-preview pre {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font-family: inherit;
+}
+
+.rename-suggestions-section {
+  margin-bottom: 16px;
+}
+
+.rename-suggestions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.rename-suggestions-header label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rename-generating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.rename-suggestion-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rename-pill {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: monospace;
+  transition: all var(--transition);
+  word-break: break-all;
+}
+
+.rename-pill:hover {
+  border-color: var(--accent);
+}
+
+.rename-pill.active {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--accent);
+}
+
+.rename-custom {
+  margin-bottom: 16px;
+}
+
+.rename-custom input {
+  width: 100%;
+  font-family: monospace;
+}
+
+.rename-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .rename-layout {
+    grid-template-columns: 1fr;
+  }
+}

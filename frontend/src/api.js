@@ -55,6 +55,23 @@ export const documents = {
     }),
 
   bulkSort: () => request('/documents/bulk-sort', { method: 'POST' }),
+
+  needsRename: () => request('/documents/needs-rename'),
+
+  generateSuggestions: (id) =>
+    request(`/documents/${id}/generate-suggestions`, { method: 'POST' }),
+
+  bulkRename: (items) =>
+    request('/documents/bulk-rename', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+
+  applyRename: (id, newName) =>
+    request(`/documents/${id}/rename`, {
+      method: 'POST',
+      body: JSON.stringify({ suggested_name: newName, apply: true }),
+    }),
 }
 
 // Chat

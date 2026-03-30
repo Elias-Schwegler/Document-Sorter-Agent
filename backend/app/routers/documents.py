@@ -102,6 +102,115 @@ async def list_pending_files():
 
 
 # ---------------------------------------------------------------------------
+# Needs-rename
+# ---------------------------------------------------------------------------
+
+
+@router.get("/needs-rename")
+async def get_needs_rename():
+    """List documents that need renaming (scan-like names or have stored suggestions)."""
+    from app.services.renaming import looks_like_scan_name
+    settings = get_settings()
+    qdrant = await get_qdrant()
+    points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[FieldCondition(key="chunk_index", match=MatchValue(value=0))]),
+        limit=10000,
+        with_payload=True,
+    )
+    results = []
+    for p in points:
+        payload = p.payload or {}
+        fname = payload.get("filename", "")
+        suggestions = payload.get("rename_suggestions", [])
+        if looks_like_scan_name(fname) or suggestions:
+            results.append({
+                "doc_id": payload.get("doc_id", ""),
+                "filename": fname,
+                "original_filename": payload.get("original_filename", ""),
+                "folder": payload.get("folder", ""),
+                "file_type": payload.get("file_type", ""),
+                "file_size": payload.get("file_size", 0),
+                "ingested_at": payload.get("ingested_at", ""),
+                "text_preview": (payload.get("full_text", "") or payload.get("chunk_text", ""))[:500],
+                "rename_suggestions": suggestions,
+            })
+    return {"documents": results, "total": len(results)}
+
+
+# ---------------------------------------------------------------------------
+# Bulk rename
+# ---------------------------------------------------------------------------
+
+
+class BulkRenameItem(BaseModel):
+    doc_id: str
+    new_name: str
+
+class BulkRenameRequest(BaseModel):
+    items: list[BulkRenameItem]
+
+@router.post("/bulk-rename")
+async def bulk_rename(body: BulkRenameRequest):
+    from app.services.renaming import apply_rename
+    results = []
+    for item in body.items:
+        try:
+            new_path = await apply_rename(item.doc_id, item.new_name)
+            # Clear suggestions
+            qdrant = await get_qdrant()
+            settings = get_settings()
+            points, _ = await qdrant.scroll(
+                collection_name=settings.qdrant_collection,
+                scroll_filter=Filter(must=[
+                    FieldCondition(key="doc_id", match=MatchValue(value=item.doc_id)),
+                    FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+                ]),
+                limit=1, with_payload=False,
+            )
+            if points:
+                await qdrant.set_payload(
+                    collection_name=settings.qdrant_collection,
+                    payload={"rename_suggestions": []},
+                    points=[points[0].id],
+                )
+            results.append({"doc_id": item.doc_id, "status": "ok", "new_name": os.path.basename(new_path)})
+        except Exception as e:
+            logger.error("Bulk rename failed for %s: %s", item.doc_id, e)
+            results.append({"doc_id": item.doc_id, "status": "error"})
+    return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# Generate suggestions
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{doc_id}/generate-suggestions")
+async def generate_suggestions(doc_id: str):
+    from app.services.renaming import suggest_rename, store_suggestions
+    settings = get_settings()
+    qdrant = await get_qdrant()
+    points, _ = await qdrant.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(must=[
+            FieldCondition(key="doc_id", match=MatchValue(value=doc_id)),
+            FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+        ]),
+        limit=1, with_payload=True,
+    )
+    if not points:
+        raise HTTPException(status_code=404, detail="Document not found")
+    payload = points[0].payload or {}
+    text = payload.get("full_text", "") or payload.get("chunk_text", "")
+    filename = payload.get("filename", "")
+    result = await suggest_rename(doc_id, text, filename)
+    if result.suggestions:
+        await store_suggestions(doc_id, result.suggestions)
+    return {"doc_id": doc_id, "suggestions": result.suggestions}
+
+
+# ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------
 
@@ -443,6 +552,21 @@ async def rename_document(doc_id: str, body: RenameRequest):
         # Apply the rename
         try:
             new_path = await apply_rename(doc_id, body.suggested_name)
+            # Clear rename_suggestions after successful apply
+            rename_points, _ = await qdrant.scroll(
+                collection_name=settings.qdrant_collection,
+                scroll_filter=Filter(must=[
+                    FieldCondition(key="doc_id", match=MatchValue(value=doc_id)),
+                    FieldCondition(key="chunk_index", match=MatchValue(value=0)),
+                ]),
+                limit=1, with_payload=False,
+            )
+            if rename_points:
+                await qdrant.set_payload(
+                    collection_name=settings.qdrant_collection,
+                    payload={"rename_suggestions": []},
+                    points=[rename_points[0].id],
+                )
             return RenameResult(
                 doc_id=doc_id,
                 original_name=current_name,

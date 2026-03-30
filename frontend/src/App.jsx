@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { useState, useCallback, createContext } from 'react'
+import { useState, useCallback, useEffect, createContext } from 'react'
 import { I18nProvider } from './i18n'
 import Sidebar from './components/Sidebar'
 import ChatPage from './pages/ChatPage'
 import DocumentsPage from './pages/DocumentsPage'
+import RenamePage from './pages/RenamePage'
 import TelegramPage from './pages/TelegramPage'
 import SettingsPage from './pages/SettingsPage'
 import Toast from './components/Toast'
+import { documents } from './api'
 
 export const ToastContext = createContext(null)
 
@@ -14,6 +16,18 @@ export default function App() {
   const [toasts, setToasts] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [docCount, setDocCount] = useState(0)
+  const [renameCount, setRenameCount] = useState(0)
+
+  useEffect(() => {
+    const fetchRenameCount = () => {
+      documents.needsRename()
+        .then(res => setRenameCount(res.total || 0))
+        .catch(() => {})
+    }
+    fetchRenameCount()
+    const interval = setInterval(fetchRenameCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const addToast = useCallback((message, type = 'info') => {
     const id = Date.now() + Math.random()
@@ -36,11 +50,13 @@ export default function App() {
             isOpen={sidebarOpen}
             onToggle={() => setSidebarOpen(prev => !prev)}
             docCount={docCount}
+            renameCount={renameCount}
           />
           <main className={`main-content ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
             <Routes>
               <Route path="/" element={<ChatPage />} />
               <Route path="/documents" element={<DocumentsPage onDocCountChange={setDocCount} />} />
+              <Route path="/rename" element={<RenamePage onRenameCountChange={setRenameCount} />} />
               <Route path="/telegram" element={<TelegramPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>

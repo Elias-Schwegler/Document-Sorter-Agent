@@ -1,14 +1,15 @@
 import { NavLink } from 'react-router-dom'
-import { MessageSquare, FileText, Send, Settings, Menu, X } from 'lucide-react'
+import { MessageSquare, FileText, Pencil, Send, Settings, Menu, X } from 'lucide-react'
 import { useI18n } from '../i18n'
 import './Sidebar.css'
 
-export default function Sidebar({ isOpen, onToggle, docCount }) {
+export default function Sidebar({ isOpen, onToggle, docCount, renameCount }) {
   const { t } = useI18n()
 
   const navItems = [
     { to: '/', icon: MessageSquare, labelKey: 'nav.chat' },
     { to: '/documents', icon: FileText, labelKey: 'nav.documents' },
+    { to: '/rename', icon: Pencil, labelKey: 'nav.rename' },
     { to: '/telegram', icon: Send, labelKey: 'nav.telegram' },
     { to: '/settings', icon: Settings, labelKey: 'nav.settings' },
   ]
@@ -44,6 +45,9 @@ export default function Sidebar({ isOpen, onToggle, docCount }) {
               <span>{t(labelKey)}</span>
               {labelKey === 'nav.documents' && docCount > 0 && (
                 <span className="sidebar-badge">{docCount}</span>
+              )}
+              {labelKey === 'nav.rename' && renameCount > 0 && (
+                <span className="sidebar-badge">{renameCount}</span>
               )}
             </NavLink>
           ))}

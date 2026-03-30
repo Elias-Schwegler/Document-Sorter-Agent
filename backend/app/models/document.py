@@ -47,6 +47,24 @@ class RenameResult(BaseModel):
     applied: bool = False
 
 
+class RenameSuggestions(BaseModel):
+    doc_id: str
+    original_name: str
+    suggestions: list[str] = []
+    applied: bool = False
+
+class NeedsRenameDocument(BaseModel):
+    doc_id: str
+    filename: str
+    original_filename: str
+    folder: str = ""
+    file_type: str = ""
+    file_size: int = 0
+    ingested_at: str = ""
+    text_preview: str = ""
+    rename_suggestions: list[str] = []
+
+
 class DuplicateInfo(BaseModel):
     doc_id: str
     existing_doc_id: str
