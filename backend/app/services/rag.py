@@ -36,9 +36,9 @@ async def chat_stream(
         return
 
     # 2. Search qdrant for top 5 chunks (score threshold 0.3)
-    search_results = await qdrant.search(
+    query_response = await qdrant.query_points(
         collection_name=settings.qdrant_collection,
-        query_vector=query_embedding,
+        query=query_embedding,
         limit=5,
         score_threshold=0.3,
     )
@@ -46,7 +46,7 @@ async def chat_stream(
     # Collect all results keyed by doc_id -> best scoring chunk
     doc_chunks: dict[str, dict] = {}
 
-    for hit in search_results:
+    for hit in query_response.points:
         payload = hit.payload or {}
         doc_id = payload.get("doc_id", "")
         if not doc_id:
@@ -190,6 +190,7 @@ async def chat_stream(
                 "model": settings.agent_model,
                 "messages": messages,
                 "stream": True,
+                "think": False,
             },
         ) as response:
             response.raise_for_status()

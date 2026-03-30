@@ -26,8 +26,6 @@ from app.services.telegram_client import (
     fetch_saved_messages,
     download_message_media,
 )
-from app.services.ingestion import ingest_document
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -199,27 +197,18 @@ async def import_messages(body: TelegramImportRequest):
         if already_exists > 0:
             logger.info("Skipped %d already-existing documents", already_exists)
 
-        # === Phase 2: Process (parse, embed, sort) each file ===
-        process_total = len(downloaded)
-        yield _evt({"type": "phase", "phase": "processing", "total": process_total, "downloaded": total})
-
-        for proc_idx, (orig_idx, mid, filepath, fname) in enumerate(downloaded):
-            if _import_cancel:
-                yield _evt({"type": "stopped", "phase": "processing", "completed": completed, "processed": proc_idx, "remaining": process_total - proc_idx})
-                return
-
-            yield _evt({"type": "process", "index": proc_idx, "total": process_total, "filename": fname, "stage": "parsing"})
-
-            try:
-                doc = await ingest_document(filepath, source="telegram")
-                yield _evt({"type": "process", "index": proc_idx, "total": process_total, "filename": fname, "stage": "done"})
-                completed += 1
-            except Exception as exc:
-                logger.error("Ingestion failed for %s: %s", fname, exc)
-                yield _evt({"type": "process", "index": proc_idx, "total": process_total, "filename": fname, "stage": "error", "detail": str(exc)[:100]})
-                errors += 1
-
-        yield _evt({"type": "complete", "total": total, "downloaded": len(downloaded), "completed": completed, "errors": errors})
+        # Phase 2 (ingestion) is handled by the file watcher asynchronously.
+        # Just emit the complete event with download counts so the SSE stream
+        # closes quickly and doesn't time out on slow hardware.
+        yield _evt({
+            "type": "complete",
+            "total": total,
+            "downloaded": len(downloaded),
+            "already_exists": already_exists,
+            "completed": 0,
+            "errors": errors,
+            "note": "Files downloaded. Ingestion will proceed in the background via the file watcher.",
+        })
 
     return StreamingResponse(progress_stream(), media_type="text/event-stream")
 

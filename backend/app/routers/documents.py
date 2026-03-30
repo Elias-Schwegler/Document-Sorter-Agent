@@ -36,6 +36,71 @@ class RenameRequest(BaseModel):
     apply: bool = False
 
 
+class PendingFile(BaseModel):
+    filename: str
+    size: int
+    modified: str
+
+
+# ---------------------------------------------------------------------------
+# Pending files (downloaded but not yet ingested)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/pending")
+async def list_pending_files():
+    """List files in the watch folder that haven't been ingested into Qdrant yet."""
+    settings = get_settings()
+    qdrant = await get_qdrant()
+    watch = Path(settings.watch_folder)
+
+    if not watch.exists():
+        return {"files": [], "total": 0}
+
+    # Collect all ingested original_filenames from Qdrant
+    ingested_names: set[str] = set()
+    try:
+        points, _ = await qdrant.scroll(
+            collection_name=settings.qdrant_collection,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="chunk_index",
+                        match=MatchValue(value=0),
+                    ),
+                ]
+            ),
+            limit=10000,
+            with_payload=["original_filename"],
+            with_vectors=False,
+        )
+        for point in points:
+            name = (point.payload or {}).get("original_filename", "")
+            if name:
+                ingested_names.add(name)
+    except Exception as exc:
+        logger.warning("Could not query Qdrant for pending check: %s", exc)
+
+    pending: list[PendingFile] = []
+    for entry in sorted(watch.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+        if not entry.is_file():
+            continue
+        ext = entry.suffix.lstrip(".").lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            continue
+        if entry.name in ingested_names:
+            continue
+        stat = entry.stat()
+        from datetime import datetime, timezone
+        pending.append(PendingFile(
+            filename=entry.name,
+            size=stat.st_size,
+            modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+        ))
+
+    return {"files": [f.model_dump() for f in pending], "total": len(pending)}
+
+
 # ---------------------------------------------------------------------------
 # Upload
 # ---------------------------------------------------------------------------

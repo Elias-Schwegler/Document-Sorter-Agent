@@ -42,6 +42,7 @@ async def sort_document(
                 "model": settings.agent_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
+                "think": False,
             },
         )
         response.raise_for_status()

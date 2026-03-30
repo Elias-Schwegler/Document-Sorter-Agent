@@ -23,6 +23,8 @@ export const documents = {
     return request(`/documents${qs ? '?' + qs : ''}`)
   },
 
+  pending: () => request('/documents/pending'),
+
   get: (id) => request(`/documents/${id}`),
 
   upload: async (files, folder = null) => {

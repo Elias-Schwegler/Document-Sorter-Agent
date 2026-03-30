@@ -66,9 +66,9 @@ async def ingest_document(
     # --- Duplicate check ---
     if embeddings:
         first_embedding = embeddings[0]
-        search_results = await qdrant.search(
+        query_response = await qdrant.query_points(
             collection_name=settings.qdrant_collection,
-            query_vector=first_embedding,
+            query=first_embedding,
             query_filter=Filter(
                 must=[
                     FieldCondition(
@@ -81,8 +81,8 @@ async def ingest_document(
             score_threshold=settings.duplicate_threshold,
         )
 
-        if search_results:
-            match = search_results[0]
+        if query_response.points:
+            match = query_response.points[0]
             payload = match.payload or {}
             logger.info(
                 "Duplicate detected for %s (score=%.4f, existing=%s)",

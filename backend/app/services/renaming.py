@@ -38,6 +38,7 @@ async def suggest_rename(
                 "model": settings.agent_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
+                "think": False,
             },
         )
         response.raise_for_status()

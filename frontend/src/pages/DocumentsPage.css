@@ -60,6 +60,81 @@
   line-height: 1.8;
 }
 
+/* Pending files section */
+.pending-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+}
+
+.pending-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pending-spinner {
+  animation: spin 1.5s linear infinite;
+  color: var(--accent, #3b82f6);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pending-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-primary, #fff);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.pending-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.pending-filename {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.pending-size {
+  color: var(--text-secondary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.pending-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
   .documents-layout {
     flex-direction: column;
