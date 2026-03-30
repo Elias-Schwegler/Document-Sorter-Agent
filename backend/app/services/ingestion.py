@@ -8,11 +8,10 @@ from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
 from app.config import get_settings
 from app.dependencies import get_qdrant
 from app.models.document import DocumentMetadata, DuplicateInfo
-from PIL import Image as PILImage
 
 from app.services.parsing import extract_text
 from app.services.chunking import chunk_text
-from app.services.embedding import embed_text, embed_texts, embed_image, embed_images
+from app.services.embedding import embed_texts
 from app.services.renaming import looks_like_scan_name
 from app.utils.file_utils import get_file_type, get_file_size
 
@@ -57,54 +56,33 @@ async def ingest_document(
     if not chunks:
         chunks = [text] if text else [""]
 
-    # --- Embedding ---
+    # --- Text extraction / Vision description ---
     if ws_callback:
         await ws_callback("embedding")
 
-    embeddings = []
     if file_type == "pdf":
-        # Render PDF pages as images and embed each with vision model.
-        # Replace text chunks with per-page text so len(chunks) == len(embeddings).
         try:
-            import fitz as fitz_lib
-
-            doc_pdf = fitz_lib.open(filepath)
-            page_texts = []
-            page_images = []
-            for page in doc_pdf:
-                page_text = page.get_text().strip()
-                if not page_text:
-                    # OCR fallback for scanned pages
-                    from app.services.parsing import _ocr_page_image
-
-                    page_text = _ocr_page_image(page, settings.tesseract_lang)
-                page_texts.append(page_text if page_text else "")
-                pix = page.get_pixmap(dpi=150)
-                img = PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                page_images.append(img)
-            doc_pdf.close()
-
-            embeddings = await embed_images(page_images)
-            # Use per-page text as chunks (one chunk per page)
-            if page_texts:
-                chunks = page_texts
+            from app.services.vision import describe_pdf_pages
+            descriptions = await describe_pdf_pages(filepath, max_pages=10)
+            if descriptions:
+                chunks = descriptions
+                text = "\n\n".join(descriptions)  # for full_text payload
         except Exception as e:
-            logger.warning("Vision embedding failed for PDF: %s, falling back to text", e)
-            embeddings = await embed_texts(chunks)
+            logger.warning("Vision extraction failed for PDF, using OCR: %s", e)
+            # Fall through to use OCR text + chunking (already set above)
+
     elif file_type == "image":
-        # Embed the image directly with vision model
         try:
-            img = PILImage.open(filepath).convert("RGB")
-            emb = await embed_image(img)
-            if emb:
-                embeddings = [emb]
+            from app.services.vision import describe_image_file
+            description = await describe_image_file(filepath)
+            if description:
+                chunks = [description]
+                text = description
         except Exception as e:
-            logger.warning("Vision embedding failed for image: %s", e)
-        if not embeddings:
-            embeddings = await embed_texts(chunks)
-    else:
-        # Text-based files: embed text chunks
-        embeddings = await embed_texts(chunks)
+            logger.warning("Vision extraction failed for image, using OCR: %s", e)
+
+    # Embed text chunks (all types go through the same text embedding)
+    embeddings = await embed_texts(chunks)
 
     if not embeddings:
         logger.error("Failed to generate embeddings for %s", filepath)

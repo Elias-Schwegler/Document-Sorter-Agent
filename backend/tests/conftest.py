@@ -145,7 +145,7 @@ def mock_qdrant():
 # Mock Ollama embedding response
 # ---------------------------------------------------------------------------
 
-def make_embedding(dim: int = 768) -> list[float]:
+def make_embedding(dim: int = 1024) -> list[float]:
     """Return a deterministic fake embedding vector."""
     return [0.01 * (i % 100) for i in range(dim)]
 
@@ -162,18 +162,10 @@ def mock_embed():
     async def _fake_embed_query(text):
         return make_embedding()
 
-    async def _fake_embed_image(image):
-        return make_embedding()
-
-    async def _fake_embed_images(images):
-        return [make_embedding() for _ in images]
-
     with (
         patch("app.services.embedding.embed_texts", side_effect=_fake_embed_texts),
         patch("app.services.embedding.embed_text", side_effect=_fake_embed_text),
         patch("app.services.embedding.embed_query", side_effect=_fake_embed_query),
-        patch("app.services.embedding.embed_image", side_effect=_fake_embed_image),
-        patch("app.services.embedding.embed_images", side_effect=_fake_embed_images),
     ):
         yield
 

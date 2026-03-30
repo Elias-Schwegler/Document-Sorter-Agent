@@ -20,8 +20,8 @@ async def ensure_models_ready() -> None:
         if ":" in name:
             available_base.add(name.split(":")[0])
 
-    # Only check agent model; embeddings now use local transformers models
-    for model in [settings.agent_model]:
+    # Check both agent model and embedding model in Ollama
+    for model in [settings.agent_model, settings.embedding_model]:
         if model not in available_base:
             logger.info("Model %s not found locally, pulling...", model)
             async for progress in pull_model(model):

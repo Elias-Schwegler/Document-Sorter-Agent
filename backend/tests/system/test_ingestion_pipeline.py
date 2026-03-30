@@ -52,17 +52,8 @@ def _patch_embed():
     async def fake_embed_text(text):
         return make_embedding()
 
-    async def fake_embed_image(image):
-        return make_embedding()
-
-    async def fake_embed_images(images):
-        return [make_embedding() for _ in images]
-
     with (
         patch("app.services.ingestion.embed_texts", side_effect=fake_embed_texts),
-        patch("app.services.ingestion.embed_text", side_effect=fake_embed_text),
-        patch("app.services.ingestion.embed_image", side_effect=fake_embed_image),
-        patch("app.services.ingestion.embed_images", side_effect=fake_embed_images),
     ):
         yield
 

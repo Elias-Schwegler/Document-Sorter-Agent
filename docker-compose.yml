@@ -25,6 +25,9 @@ services:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ./data/ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_NUM_PARALLEL=1
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
       interval: 15s
@@ -40,6 +43,9 @@ services:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ./data/ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_NUM_PARALLEL=1
     deploy:
       resources:
         reservations:
@@ -65,7 +71,6 @@ services:
       - ./data/sorted:/app/data/sorted
       - ./data/qdrant_snapshots:/app/data/qdrant_snapshots
       - ./data/telegram_sessions:/app/data/telegram_sessions
-      - ./data/hf_cache:/root/.cache/huggingface
     env_file:
       - .env
     depends_on:

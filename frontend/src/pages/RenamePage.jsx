@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react'
-import { FileText, Pencil, RefreshCw, CheckCircle, Loader, Check } from 'lucide-react'
+import { FileText, Pencil, RefreshCw, CheckCircle, Loader, Check, Trash2 } from 'lucide-react'
 import { documents, settings as settingsApi } from '../api'
 import { ToastContext } from '../App'
 import { useI18n } from '../i18n'
@@ -106,6 +106,23 @@ export default function RenamePage({ onRenameCountChange }) {
     } catch (err) {
       addToast('Bulk rename failed', 'error')
     } finally { setBulkApplying(false) }
+  }
+
+  const handleDiscard = async () => {
+    if (!selectedId) return
+    // Remove from rename list by clearing suggestions (so it no longer shows as "needs rename")
+    try {
+      await documents.applyRename(selectedId, selected.filename) // keep current name
+      addToast('Document removed from rename queue', 'info')
+      setDocs(prev => prev.filter(d => d.doc_id !== selectedId))
+      const remaining = docs.filter(d => d.doc_id !== selectedId)
+      setSelectedId(remaining.length > 0 ? remaining[0].doc_id : null)
+      setSelectedName('')
+      setCustomName('')
+      onRenameCountChange?.(remaining.length)
+    } catch {
+      addToast('Failed to discard', 'error')
+    }
   }
 
   const handleAutoToggle = async (val) => {
@@ -259,6 +276,13 @@ export default function RenamePage({ onRenameCountChange }) {
                   >
                     {applying ? <Loader size={14} className="spinning" /> : <Check size={14} />}
                     {t('rename.apply')}
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={handleDiscard}
+                  >
+                    <Trash2 size={14} />
+                    Discard
                   </button>
                 </div>
               </>
