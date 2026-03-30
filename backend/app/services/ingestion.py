@@ -8,9 +8,11 @@ from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
 from app.config import get_settings
 from app.dependencies import get_qdrant
 from app.models.document import DocumentMetadata, DuplicateInfo
+from PIL import Image as PILImage
+
 from app.services.parsing import extract_text
 from app.services.chunking import chunk_text
-from app.services.embedding import embed_text, embed_texts
+from app.services.embedding import embed_text, embed_texts, embed_image, embed_images
 from app.services.renaming import looks_like_scan_name
 from app.utils.file_utils import get_file_type, get_file_size
 
@@ -59,10 +61,61 @@ async def ingest_document(
     if ws_callback:
         await ws_callback("embedding")
 
-    embeddings = await embed_texts(chunks)
+    embeddings = []
+    if file_type == "pdf":
+        # Render PDF pages as images and embed each with vision model.
+        # Replace text chunks with per-page text so len(chunks) == len(embeddings).
+        try:
+            import fitz as fitz_lib
+
+            doc_pdf = fitz_lib.open(filepath)
+            page_texts = []
+            page_images = []
+            for page in doc_pdf:
+                page_text = page.get_text().strip()
+                if not page_text:
+                    # OCR fallback for scanned pages
+                    from app.services.parsing import _ocr_page_image
+
+                    page_text = _ocr_page_image(page, settings.tesseract_lang)
+                page_texts.append(page_text if page_text else "")
+                pix = page.get_pixmap(dpi=150)
+                img = PILImage.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                page_images.append(img)
+            doc_pdf.close()
+
+            embeddings = await embed_images(page_images)
+            # Use per-page text as chunks (one chunk per page)
+            if page_texts:
+                chunks = page_texts
+        except Exception as e:
+            logger.warning("Vision embedding failed for PDF: %s, falling back to text", e)
+            embeddings = await embed_texts(chunks)
+    elif file_type == "image":
+        # Embed the image directly with vision model
+        try:
+            img = PILImage.open(filepath).convert("RGB")
+            emb = await embed_image(img)
+            if emb:
+                embeddings = [emb]
+        except Exception as e:
+            logger.warning("Vision embedding failed for image: %s", e)
+        if not embeddings:
+            embeddings = await embed_texts(chunks)
+    else:
+        # Text-based files: embed text chunks
+        embeddings = await embed_texts(chunks)
+
     if not embeddings:
         logger.error("Failed to generate embeddings for %s", filepath)
         raise RuntimeError(f"Embedding failed for {filepath}")
+
+    # Ensure chunks and embeddings are aligned
+    if len(embeddings) != len(chunks):
+        # Truncate to the shorter list to keep them paired
+        min_len = min(len(embeddings), len(chunks))
+        embeddings = embeddings[:min_len]
+        chunks = chunks[:min_len]
 
     # --- Duplicate check ---
     if embeddings:

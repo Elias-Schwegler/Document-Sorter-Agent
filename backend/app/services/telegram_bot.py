@@ -104,7 +104,7 @@ async def _rag_query(question: str) -> tuple[str, list[dict]]:
     """
     from app.config import get_settings
     from app.dependencies import get_qdrant, get_http_client
-    from app.services.embedding import embed_text
+    from app.services.embedding import embed_query
     from app.utils.prompt_templates import RAG_SYSTEM_PROMPT, RAG_CONTEXT_TEMPLATE
     from qdrant_client.models import Filter, FieldCondition, MatchValue
 
@@ -112,7 +112,7 @@ async def _rag_query(question: str) -> tuple[str, list[dict]]:
     qdrant = await get_qdrant()
     client = await get_http_client()
 
-    query_embedding = await embed_text(question)
+    query_embedding = await embed_query(question)
     if not query_embedding:
         return "Failed to process your question (embedding error).", []
 

@@ -45,16 +45,24 @@ def _mock_qdrant_with_duplicate(score=0.98):
 
 @pytest.fixture
 def _patch_embed():
-    """Patch embedding functions to avoid Ollama calls."""
+    """Patch embedding functions to avoid model loading."""
     async def fake_embed_texts(texts):
         return [make_embedding() for _ in texts]
 
     async def fake_embed_text(text):
         return make_embedding()
 
+    async def fake_embed_image(image):
+        return make_embedding()
+
+    async def fake_embed_images(images):
+        return [make_embedding() for _ in images]
+
     with (
         patch("app.services.ingestion.embed_texts", side_effect=fake_embed_texts),
         patch("app.services.ingestion.embed_text", side_effect=fake_embed_text),
+        patch("app.services.ingestion.embed_image", side_effect=fake_embed_image),
+        patch("app.services.ingestion.embed_images", side_effect=fake_embed_images),
     ):
         yield
 

@@ -7,7 +7,7 @@ from qdrant_client.models import Filter, FieldCondition, MatchValue
 from app.config import get_settings
 from app.dependencies import get_qdrant, get_http_client
 from app.models.chat import ChatMessage, SourceReference
-from app.services.embedding import embed_text
+from app.services.embedding import embed_query
 from app.utils.prompt_templates import RAG_SYSTEM_PROMPT, RAG_CONTEXT_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ async def chat_stream(
     client = await get_http_client()
 
     # 1. Embed the user query
-    query_embedding = await embed_text(message)
+    query_embedding = await embed_query(message)
     if not query_embedding:
         yield f"data: {json.dumps({'token': 'Error: failed to embed query.', 'done': False})}\n\n"
         yield f"data: {json.dumps({'done': True, 'sources': []})}\n\n"

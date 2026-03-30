@@ -20,7 +20,8 @@ async def ensure_models_ready() -> None:
         if ":" in name:
             available_base.add(name.split(":")[0])
 
-    for model in [settings.agent_model, settings.embedding_model]:
+    # Only check agent model; embeddings now use local transformers models
+    for model in [settings.agent_model]:
         if model not in available_base:
             logger.info("Model %s not found locally, pulling...", model)
             async for progress in pull_model(model):

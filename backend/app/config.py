@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     ollama_mode: str = "docker"
     ollama_base_url: str = "http://localhost:11434"
     agent_model: str = "qwen3.5:4b"
-    embedding_model: str = "qwen3-embedding:4b"
-    embedding_dimensions: int = 1024
+    embedding_model: str = "nomic-embed-vision-v1.5"
+    embedding_dimensions: int = 768
 
     # Qdrant
     qdrant_host: str = "qdrant"
