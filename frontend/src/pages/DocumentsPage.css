@@ -200,10 +200,33 @@
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
-  background: var(--accent, #3b82f6);
-  color: #fff;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+.pending-badge.active {
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+.pending-spinner-inline {
+  animation: spin 1s linear infinite;
+}
+
+.pending-item.active {
+  background: rgba(88, 166, 255, 0.08);
+  border-left: 3px solid var(--accent);
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
 }
 
 @media (max-width: 900px) {

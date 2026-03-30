@@ -22,12 +22,14 @@ export default function DocumentsPage({ onDocCountChange }) {
   } = useDocuments()
   const { status: wsStatus } = useWebSocket()
   const [pendingFiles, setPendingFiles] = useState([])
+  const [currentlyProcessing, setCurrentlyProcessing] = useState('')
   const [pendingFolders, setPendingFolders] = useState([])
 
   const loadPending = useCallback(async () => {
     try {
       const result = await docsApi.pending()
       setPendingFiles(result.files || [])
+      setCurrentlyProcessing(result.currently_processing || '')
     } catch {}
     try {
       const folders = await docsApi.pendingFolders()
@@ -78,14 +80,23 @@ export default function DocumentsPage({ onDocCountChange }) {
             Pending ({pendingFiles.length} file{pendingFiles.length !== 1 ? 's' : ''} awaiting processing)
           </h3>
           <div className="pending-list">
-            {pendingFiles.map((file) => (
-              <div key={file.filename} className="pending-item">
-                <FileText size={16} className="pending-icon" />
-                <span className="pending-filename">{file.filename}</span>
-                <span className="pending-size">{formatFileSize(file.size)}</span>
-                <span className="pending-badge">Processing...</span>
-              </div>
-            ))}
+            {pendingFiles.map((file) => {
+              const isActive = currentlyProcessing === file.filename
+              return (
+                <div key={file.filename} className={`pending-item ${isActive ? 'active' : ''}`}>
+                  <FileText size={16} className="pending-icon" />
+                  <span className="pending-filename">{file.filename}</span>
+                  <span className="pending-size">{formatFileSize(file.size)}</span>
+                  {isActive ? (
+                    <span className="pending-badge active">
+                      <Loader2 size={12} className="pending-spinner-inline" /> Processing...
+                    </span>
+                  ) : (
+                    <span className="pending-badge">Queued</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

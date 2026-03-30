@@ -98,7 +98,14 @@ async def list_pending_files():
             modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
         ))
 
-    return {"files": [f.model_dump() for f in pending], "total": len(pending)}
+    from app.services.watcher import get_currently_processing
+    currently = get_currently_processing()
+
+    return {
+        "files": [f.model_dump() for f in pending],
+        "total": len(pending),
+        "currently_processing": currently,
+    }
 
 
 # ---------------------------------------------------------------------------

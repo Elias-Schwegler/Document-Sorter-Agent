@@ -10,9 +10,15 @@ from app.utils.file_utils import SUPPORTED_EXTENSIONS
 logger = logging.getLogger(__name__)
 
 _watcher_task: asyncio.Task | None = None
+_currently_processing: str = ""
 
 # Delay (in seconds) between ingesting files to avoid overloading slow hardware
 INGEST_DELAY_SECONDS = 2
+
+
+def get_currently_processing() -> str:
+    """Return the filename currently being processed, or empty string."""
+    return _currently_processing
 
 
 async def _is_already_ingested(filename: str) -> bool:
@@ -49,6 +55,8 @@ async def _is_already_ingested(filename: str) -> bool:
 
 async def _ingest_file(path: Path, source: str = "watcher") -> None:
     """Ingest a single file with error handling."""
+    global _currently_processing
+    _currently_processing = path.name
     try:
         from app.services.ingestion import ingest_document
 
@@ -56,6 +64,8 @@ async def _ingest_file(path: Path, source: str = "watcher") -> None:
         logger.info("Ingestion complete for %s", path.name)
     except Exception:
         logger.exception("Failed to ingest %s", path.name)
+    finally:
+        _currently_processing = ""
 
 
 async def _scan_existing_files(folder: str) -> None:
