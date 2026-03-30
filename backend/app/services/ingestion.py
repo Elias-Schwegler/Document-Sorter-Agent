@@ -220,7 +220,7 @@ async def ingest_document(
     # --- Renaming ---
     if settings.auto_rename:
         try:
-            from app.services.renaming import suggest_rename, apply_rename, store_suggestions, looks_like_scan_name
+            from app.services.renaming import suggest_rename, apply_rename
 
             rename_result = await suggest_rename(doc_id, text, filename)
             if rename_result.suggestions:
@@ -232,7 +232,7 @@ async def ingest_document(
     elif looks_like_scan_name(filename):
         # Generate suggestions but don't apply - user reviews on rename page
         try:
-            from app.services.renaming import suggest_rename, store_suggestions, looks_like_scan_name
+            from app.services.renaming import suggest_rename, store_suggestions
 
             rename_result = await suggest_rename(doc_id, text, filename)
             if rename_result.suggestions:
